@@ -143,6 +143,7 @@ mod CamelAccessControlMock {
 
 #[starknet::contract]
 mod SnakeAccessControlPanicMock {
+    use core::panic_with_felt252;
     use starknet::ContractAddress;
 
     #[storage]
@@ -184,6 +185,7 @@ mod SnakeAccessControlPanicMock {
 
 #[starknet::contract]
 mod CamelAccessControlPanicMock {
+    use core::panic_with_felt252;
     use starknet::ContractAddress;
 
     #[storage]
