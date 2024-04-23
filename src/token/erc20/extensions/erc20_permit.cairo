@@ -92,7 +92,7 @@ mod ERC20PermitComponent {
         }
 
         fn DOMAIN_SEPARATOR(self: @ComponentState<TContractState>) -> felt252 {
-            return 0;
+            return selector!("StarkNetDomain(name:felt,version:felt,chainId:felt)");
         }
     }
 }
