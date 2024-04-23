@@ -103,6 +103,12 @@ mod ERC20PermitComponent {
 const PERMIT_TYPE_HASH: felt252 = 
     0x2c6b40a68694b0c81b94622be3270b572c66062829ef49ce2ceca6735ac4948;
 
+// sn_keccak("\"u256\"(\"low\":\"felt\",\"high\":\"felt\)")
+// Result of computing off-cahin the above string using StarknetJS
+const U256_TYPE_HASH: felt252 =
+    0xd5d4da444d5bce017f514c8dc8d369b01e643e24f60e172d2daca13171d03c;
+
+
 #[derive(Copy, Drop, Hash)]
 struct Permit {
     owner: ContractAddress,
@@ -114,6 +120,21 @@ struct Permit {
 impl StructHashImpl of StructHash<Permit> {
     fn hash_struct(self: @Permit) -> felt252 {
         let hash_state = PoseidonTrait::new();
-        hash_state.update_with(PERMIT_TYPE_HASH).update_with(*self).finalize()
+        hash_state
+            .update_with(PERMIT_TYPE_HASH)
+            .update_with(*self.owner)
+            .update_with(*self.spender)
+            .update_with(self.value.hash_struct())
+            .finalize()
+    }
+}
+
+impl StructHashU256 of StructHash<u256> {
+    fn hash_struct(self: @u256) -> felt252 {
+        let state = PoseidonTrait::new();
+        state
+            .update_with(U256_TYPE_HASH)
+            .update_with(*self)
+            .finalize()
     }
 }
