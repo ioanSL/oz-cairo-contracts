@@ -12,7 +12,6 @@ trait IPermit<TState> {
         spender: ContractAddress,
         value: u256,
         deadline: u64,
-        nonce: felt252,
         signature: Array<felt252>
     );
 
@@ -23,6 +22,8 @@ trait IPermit<TState> {
 
 #[starknet::component]
 mod ERC20PermitComponent {
+    use starknet::get_block_timestamp;
+    use openzeppelin::account::dual_account::{DualCaseAccount, DualCaseAccountABI};
     use openzeppelin::utils::cryptography::interface::INonces;
     use openzeppelin::token::erc20::{ERC20Component, ERC20Component::InternalImpl as ERC20InternalTrait};
     use openzeppelin::token::erc20::interface::IERC20;
@@ -59,14 +60,13 @@ mod ERC20PermitComponent {
             spender: ContractAddress, 
             value: u256, 
             deadline: u64,
-            nonce: felt252,
             signature: Array<felt252>
         ) {
-            assert(deadline <= self.deadline.read(), Errors::INVALID_DEADLINE);
-            assert(owner.is_non_zero(), Errors::INVALID_OWNER);
+            assert(get_block_timestamp() > deadline, Errors::INVALID_DEADLINE);
+            
             let mut nonces_component = get_dep_component_mut!(ref self, Nonces);
+            let nonce = self.nonces(owner);
             nonces_component.use_checked_nonce(owner, nonce);
-            // TODO: Verify signature
 
             let permit = Permit {
                 owner,
@@ -113,7 +113,8 @@ mod ERC20PermitComponent {
         }
 
         fn _permit(
-            ref self: ComponentState<TContractState>, 
+            ref self: ComponentState<TContractState>,
+            owner: ContractAddress, 
             spender: ContractAddress, 
             value: u256, 
         ) {
