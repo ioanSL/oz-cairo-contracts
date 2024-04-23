@@ -1,3 +1,7 @@
+use core::hash::HashStateExTrait;
+use hash::{HashStateTrait, Hash};
+use openzeppelin::utils::cryptography::snip12::{OffchainMessageHash, StructHash, SNIP12Metadata};
+use poseidon::PoseidonTrait;
 use starknet::ContractAddress;
 
 #[starknet::interface]
@@ -20,12 +24,11 @@ trait IPermit<TState> {
 #[starknet::component]
 mod ERC20PermitComponent {
     use openzeppelin::utils::cryptography::interface::INonces;
-use super::IPermit;
-    use openzeppelin::token::erc20::ERC20Component;
+    use openzeppelin::token::erc20::{ERC20Component, ERC20Component::InternalImpl as ERC20InternalTrait};
     use openzeppelin::token::erc20::interface::IERC20;
     use openzeppelin::utils::cryptography::nonces::NoncesComponent::InternalTrait as NoncesInternalTrait;
     use openzeppelin::utils::cryptography::nonces::NoncesComponent;
-    use super::ContractAddress;
+    use super::{ContractAddress, IPermit, Permit, OffchainMessageHash, SNIP12Metadata};
 
     #[storage]
     struct Storage {
@@ -46,6 +49,7 @@ use super::IPermit;
         +ERC20Component::HasComponent<TContractState>,
         +ERC20Component::ERC20HooksTrait<TContractState>,
         impl Nonces: NoncesComponent::HasComponent<TContractState>,
+        +SNIP12Metadata,
         +Drop<TContractState>
     > of IPermit<ComponentState<TContractState>> {
 
@@ -63,7 +67,24 @@ use super::IPermit;
             let mut nonces_component = get_dep_component_mut!(ref self, Nonces);
             nonces_component.use_checked_nonce(owner, nonce);
             // TODO: Verify signature
-            self._permit(spender, value);
+
+            let permit = Permit {
+                owner,
+                spender, 
+                value, 
+                deadline,
+            };
+            let hash = permit.get_message_hash(owner);
+
+            let is_valid_signature_felt = DualCaseAccount { contract_address: owner }
+                .is_valid_signature(hash, signature);
+
+            let is_valid_signature = is_valid_signature_felt == starknet::VALIDATED 
+                || is_valid_signature_felt == 1;
+
+            assert(is_valid_signature, Errors::INVALID_SIGNATURE);
+
+            self._permit(owner, spender, value);
         }
 
         fn nonces(self: @ComponentState<TContractState>, owner: ContractAddress) -> felt252 {
@@ -97,7 +118,27 @@ use super::IPermit;
             value: u256, 
         ) {
             let mut erc20_component = get_dep_component_mut!(ref self, ERC20);
-            erc20_component.approve(spender, value);
+            erc20_component._approve(owner, spender, value);
         }
+    }
+}
+
+// sn_keccak("\"Permit\"(\"owner\":\"ContractAddress\",\"spender\":\"ContractAddress\",\"value\":\"u256\",\"deadline\":\"u128\")\"u256\"(\"low\":\"felt\",\"high\":\"felt\")")
+// Result of computing off-cahin the above string using StarknetJS
+const PERMIT_TYPE_HASH: felt252 = 
+    0x2c6b40a68694b0c81b94622be3270b572c66062829ef49ce2ceca6735ac4948;
+
+#[derive(Copy, Drop, Hash)]
+struct Permit {
+    owner: ContractAddress,
+    spender: ContractAddress,
+    value: u256,
+    deadline: u64,
+}
+
+impl StructHashImpl of StructHash<Permit> {
+    fn hash_struct(self: @Permit) -> felt252 {
+        let hash_state = PoseidonTrait::new();
+        hash_state.update_with(PERMIT_TYPE_HASH).update_with(*self).finalize()
     }
 }
