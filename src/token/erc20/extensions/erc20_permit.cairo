@@ -1,6 +1,11 @@
 use core::hash::HashStateExTrait;
 use hash::{HashStateTrait, Hash};
-use openzeppelin::utils::cryptography::snip12::{OffchainMessageHash, StructHash, SNIP12Metadata};
+use openzeppelin::utils::cryptography::snip12::{
+    OffchainMessageHash, 
+    StructHash, 
+    SNIP12Metadata, 
+    STARKNET_DOMAIN_TYPE_HASH
+};
 use poseidon::PoseidonTrait;
 use starknet::ContractAddress;
 
@@ -29,10 +34,15 @@ mod ERC20PermitComponent {
     use openzeppelin::token::erc20::interface::IERC20;
     use openzeppelin::utils::cryptography::nonces::NoncesComponent::InternalTrait as NoncesInternalTrait;
     use openzeppelin::utils::cryptography::nonces::NoncesComponent;
-    use super::{ContractAddress, IPermit, Permit, OffchainMessageHash, SNIP12Metadata};
+    use super::{ContractAddress, IPermit, Permit, OffchainMessageHash, SNIP12Metadata, STARKNET_DOMAIN_TYPE_HASH};
 
     #[storage]
     struct Storage {}
+
+    #[event]
+    #[derive(Drop, starknet::Event)]
+    enum Event {}
+    
 
     mod Errors {
         const INVALID_SIGNATURE: felt252 = 'Permit: Invalid signature';
@@ -91,7 +101,7 @@ mod ERC20PermitComponent {
         }
 
         fn DOMAIN_SEPARATOR(self: @ComponentState<TContractState>) -> felt252 {
-            return selector!("StarkNetDomain(name:felt,version:felt,chainId:felt)");
+            return STARKNET_DOMAIN_TYPE_HASH;
         }
     }
 }
