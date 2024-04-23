@@ -37,7 +37,6 @@ mod ERC20PermitComponent {
     mod Errors {
         const INVALID_SIGNATURE: felt252 = 'Permit: Invalid signature';
         const INVALID_DEADLINE: felt252 = 'Permit: Expired deadline';
-        const INVALID_NONCE: felt252 = 'Permit: Invalid nonce';
         const INVALID_OWNER: felt252 = 'Permit: Invalid owner';
     }
 
