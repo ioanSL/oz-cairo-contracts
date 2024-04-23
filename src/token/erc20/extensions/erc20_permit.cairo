@@ -32,9 +32,7 @@ mod ERC20PermitComponent {
     use super::{ContractAddress, IPermit, Permit, OffchainMessageHash, SNIP12Metadata};
 
     #[storage]
-    struct Storage {
-        deadline: u64,
-    }
+    struct Storage {}
 
     mod Errors {
         const INVALID_SIGNATURE: felt252 = 'Permit: Invalid signature';
@@ -105,13 +103,6 @@ mod ERC20PermitComponent {
         +ERC20Component::ERC20HooksTrait<TContractState>,
         +Drop<TContractState>
     > of InternalTrait<TContractState> {
-        fn initializer(
-            ref self: ComponentState<TContractState>, 
-            deadline: u64
-        ) {
-            self.deadline.write(deadline);
-        }
-
         fn _permit(
             ref self: ComponentState<TContractState>,
             owner: ContractAddress, 
