@@ -45,7 +45,7 @@ mod ERC20PermitComponent {
     impl ERC20Permit<
         TContractState,
         +HasComponent<TContractState>,
-        +ERC20Component::HasComponent<TContractState>,
+        impl ERC20: ERC20Component::HasComponent<TContractState>,
         +ERC20Component::ERC20HooksTrait<TContractState>,
         impl Nonces: NoncesComponent::HasComponent<TContractState>,
         +SNIP12Metadata,
@@ -82,7 +82,8 @@ mod ERC20PermitComponent {
 
             assert(is_valid_signature, Errors::INVALID_SIGNATURE);
 
-            self._permit(owner, spender, value);
+            let mut erc20_component = get_dep_component_mut!(ref self, ERC20);
+            erc20_component._approve(owner, spender, value);
         }
 
         fn nonces(self: @ComponentState<TContractState>, owner: ContractAddress) -> felt252 {
@@ -94,26 +95,8 @@ mod ERC20PermitComponent {
             return 0;
         }
     }
-
-    #[generate_trait]
-    impl InternalImpl<
-        TContractState,
-        +HasComponent<TContractState>,
-        impl ERC20: ERC20Component::HasComponent<TContractState>,
-        +ERC20Component::ERC20HooksTrait<TContractState>,
-        +Drop<TContractState>
-    > of InternalTrait<TContractState> {
-        fn _permit(
-            ref self: ComponentState<TContractState>,
-            owner: ContractAddress, 
-            spender: ContractAddress, 
-            value: u256, 
-        ) {
-            let mut erc20_component = get_dep_component_mut!(ref self, ERC20);
-            erc20_component._approve(owner, spender, value);
-        }
-    }
 }
+
 
 // sn_keccak("\"Permit\"(\"owner\":\"ContractAddress\",\"spender\":\"ContractAddress\",\"value\":\"u256\",\"deadline\":\"u128\")\"u256\"(\"low\":\"felt\",\"high\":\"felt\")")
 // Result of computing off-cahin the above string using StarknetJS
