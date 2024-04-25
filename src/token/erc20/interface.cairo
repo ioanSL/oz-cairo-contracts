@@ -130,7 +130,10 @@ trait ERC20PermitABI<TState> {
     fn symbol(self: @TState) -> ByteArray;
     fn decimals(self: @TState) -> u8;
 
-    // IERC20Permit
+    // INonces
+    fn nonces(self: @TState, owner: ContractAddress) -> felt252;
+
+    // IPermit
     fn permit(
         ref self: TState,
         owner: ContractAddress,
@@ -139,8 +142,6 @@ trait ERC20PermitABI<TState> {
         deadline: u128,
         signature: Array<felt252>
     );
-
-    fn nonces(self: @TState, owner: ContractAddress) -> u64;
 
     fn DOMAIN_SEPARATOR(self: @TState) -> felt252;
 }
