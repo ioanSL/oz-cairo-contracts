@@ -16,7 +16,7 @@ trait IPermit<TState> {
         owner: ContractAddress,
         spender: ContractAddress,
         value: u256,
-        deadline: u64,
+        deadline: u128,
         signature: Array<felt252>
     );
 
@@ -66,10 +66,10 @@ mod ERC20PermitComponent {
             owner: ContractAddress, 
             spender: ContractAddress, 
             value: u256, 
-            deadline: u64,
+            deadline: u128,
             signature: Array<felt252>
         ) {
-            assert(get_block_timestamp() > deadline, Errors::INVALID_DEADLINE);
+            assert(get_block_timestamp().into() <= deadline, Errors::INVALID_DEADLINE);
             
             let mut nonces_component = get_dep_component_mut!(ref self, Nonces);
             let nonce = self.nonces(owner);
@@ -123,7 +123,7 @@ struct Permit {
     owner: ContractAddress,
     spender: ContractAddress,
     value: u256,
-    deadline: u64,
+    deadline: u128,
 }
 
 impl StructHashImpl of StructHash<Permit> {

@@ -136,7 +136,7 @@ trait ERC20PermitABI<TState> {
         owner: ContractAddress,
         spender: ContractAddress,
         value: u256,
-        deadline: u64,
+        deadline: u128,
         signature: Array<felt252>
     );
 
