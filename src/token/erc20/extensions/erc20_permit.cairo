@@ -72,7 +72,7 @@ mod ERC20PermitComponent {
             assert(get_block_timestamp().into() <= deadline, Errors::INVALID_DEADLINE);
             
             let mut nonces_component = get_dep_component_mut!(ref self, Nonces);
-            let nonce = self.nonces(owner);
+            let nonce = nonces_component.nonces(owner);
             nonces_component.use_checked_nonce(owner, nonce);
 
             let permit = Permit {
