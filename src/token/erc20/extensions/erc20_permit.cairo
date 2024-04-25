@@ -134,6 +134,7 @@ impl StructHashImpl of StructHash<Permit> {
             .update_with(*self.owner)
             .update_with(*self.spender)
             .update_with(self.value.hash_struct())
+            .update_with(*self.deadline)
             .finalize()
     }
 }
