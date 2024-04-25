@@ -19,6 +19,9 @@ mod ERC2612 {
     impl ERC20MixinImpl = ERC20Component::ERC20MixinImpl<ContractState>;
     impl ERC20InternalImpl = ERC20Component::InternalImpl<ContractState>;
 
+    #[abi(embed_v0)]
+    impl NoncesImpl = NoncesComponent::NoncesImpl<ContractState>;
+
     #[storage]
     struct Storage {
         #[substorage(v0)]
