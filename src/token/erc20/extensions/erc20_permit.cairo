@@ -58,6 +58,16 @@ mod ERC20PermitComponent {
         +Drop<TContractState>
     > of IPermit<ComponentState<TContractState>> {
 
+        //
+        // Allows the owner of the token to approve the spender to transfer a specified amount of tokens on their behalf.
+        //
+        // @param self The reference to the ERC20Permit contract state.
+        // @param owner The address of the token owner.
+        // @param spender The address of the spender.
+        // @param value The amount of tokens to be approved for transfer.
+        // @param deadline The deadline timestamp until which the permit is valid.
+        // @param signature The cryptographic signature of the permit.
+        //
         fn permit(
             ref self: ComponentState<TContractState>, 
             owner: ContractAddress, 
@@ -91,6 +101,12 @@ mod ERC20PermitComponent {
             erc20_component._approve(owner, spender, value);
         }
 
+        //
+        // Returns the domain separator for the ERC20 permit extension.
+        //
+        // @param self The reference to the component state of the contract.
+        // @return The domain separator value as a felt252.
+        //
         fn DOMAIN_SEPARATOR(self: @ComponentState<TContractState>) -> felt252 {
             return STARKNET_DOMAIN_TYPE_HASH;
         }
@@ -109,6 +125,11 @@ const U256_TYPE_HASH: felt252 =
     selector!("u256(low:felt,high:felt)");
 
 
+//
+// @title Permit
+// @dev This struct represents a permit for ERC20 token transfers.
+// It contains information about the spender, the value, and the deadline.
+//
 #[derive(Copy, Drop, Hash)]
 struct Permit {
     spender: ContractAddress,
