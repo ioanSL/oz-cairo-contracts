@@ -12,7 +12,7 @@ mod ERC2612 {
     component!(path: ERC20PermitComponent, storage: erc20permit, event: ERC20PermitEvent);
 
     #[abi(embed_v0)]
-    impl ERC20PermitImpl = ERC20PermitComponent::ERC20PermitImpl<ContractState>;
+    impl ERC20PermitComponentImpl = ERC20PermitComponent::ERC20PermitImpl<ContractState>;
 
     // ERC20 Mixin
     #[abi(embed_v0)]

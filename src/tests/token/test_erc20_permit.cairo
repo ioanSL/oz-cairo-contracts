@@ -1,124 +1,151 @@
-use openzeppelin::token::erc20::interface::IERC20;
-use openzeppelin::utils::serde::SerializedAppend;
-use openzeppelin::token::erc20::erc20::ERC20Component::InternalTrait;
-use openzeppelin::token::erc20::extensions::erc20_permit::{IPermit, Permit, OffchainMessageHash};
-use openzeppelin::tests::mocks::erc20_permit_mocks::ERC20PermitMock;
-use openzeppelin::tests::mocks::erc20_permit_mocks::ERC20PermitMock::SNIP12MetadataImpl;
-use openzeppelin::tests::utils::constants::{NAME, SYMBOL, SUPPLY, ZERO, OWNER, PUBKEY, RECIPIENT};
-use openzeppelin::tests::utils;
-use openzeppelin::token::erc20::ERC20Component::InternalImpl as ERC20Impl;
-use openzeppelin::token::erc20::extensions::ERC20PermitComponent;
-use openzeppelin::utils::cryptography::snip12::STARKNET_DOMAIN_TYPE_HASH;
-use openzeppelin::token::erc20::interface::{ERC20PermitABIDispatcher, ERC20PermitABIDispatcherTrait};
-use openzeppelin::tests::mocks::account_mocks::DualCaseAccountMock;
+// use openzeppelin::token::erc20::interface::IERC20;
+// use openzeppelin::utils::serde::SerializedAppend;
+// use openzeppelin::token::erc20::erc20::ERC20Component::InternalTrait;
 
-use starknet::ContractAddress;
-use starknet::contract_address_const;
-use starknet::testing;
+// use openzeppelin::tests::utils;
+// use openzeppelin::token::erc20::ERC20Component::InternalImpl as ERC20Impl;
+// use openzeppelin::token::erc20::extensions::ERC20PermitComponent;
+// use openzeppelin::utils::cryptography::snip12::STARKNET_DOMAIN_TYPE_HASH;
+// use openzeppelin::tests::mocks::account_mocks::DualCaseAccountMock;
+
+// use starknet::ContractAddress;
+// use starknet::contract_address_const;
 
 
-type ComponentState = ERC20PermitComponent::ComponentState<ERC20PermitMock::ContractState>;
+#[cfg(test)]
+mod testERC20Permit{
+    use core::array::ArrayTrait;
+use snforge_std::cheatcodes::events::EventFetcher;
+use snforge_std::signature::VerifierTrait;
+use snforge_std::signature::SignerTrait;
+use openzeppelin::utils::cryptography::snip12::StructHash;
+use core::traits::Into;
+    use core::traits::TryInto;
+    use core::result::ResultTrait;
+    use starknet::ContractAddress;
 
-fn CONTRACT_STATE() -> ERC20PermitMock::ContractState {
-    ERC20PermitMock::contract_state_for_testing()
-}
-fn COMPONENT_STATE() -> ComponentState {
-    ERC20PermitComponent::component_state_for_testing()
-}
+    use openzeppelin::tests::utils::constants::{NAME, SYMBOL, SUPPLY, ZERO, OWNER, PUBKEY, RECIPIENT};
+    use openzeppelin::tests::mocks::erc20_permit_mocks::ERC20PermitMock;
+    use openzeppelin::token::erc20::interface::{ERC20PermitABIDispatcher, ERC20PermitABIDispatcherTrait};
+    use openzeppelin::tests::mocks::erc20_permit_mocks::ERC20PermitMock::SNIP12MetadataImpl;
+    use openzeppelin::token::erc20::extensions::erc20_permit::{IPermit, Permit, OffchainMessageHash};
+    use openzeppelin::presets::interfaces::account::AccountUpgradeableABIDispatcher;
 
-fn setup() -> (ComponentState, ERC20PermitMock::ContractState) {
-    let mut state = COMPONENT_STATE();
-    let mut mock_state = CONTRACT_STATE();
-
-    mock_state.erc20._mint(OWNER(), SUPPLY);
-    utils::drop_event(ZERO());
-    (state, mock_state)
-}
-
-fn setup_account() -> ContractAddress {
-    let mut calldata = array![0x26da8d11938b76025862be14fdb8b28438827f73e75e86f7bfa38b196951fa7];
-    utils::deploy(DualCaseAccountMock::TEST_CLASS_HASH, calldata)
-}
-
-fn deploy() -> ERC20PermitABIDispatcher {
-    let mut calldata = array![];
-    calldata.append_serde(NAME());
-    calldata.append_serde(SYMBOL());
-    calldata.append_serde(SUPPLY);
-    calldata.append_serde(OWNER());
-
-    let target = utils::deploy(ERC20PermitMock::TEST_CLASS_HASH, calldata);
-    ERC20PermitABIDispatcher { contract_address: target }
-}
+    use snforge_std::{declare, ContractClassTrait, start_warp, CheatTarget, ContractClass, spy_events, SpyOn, event_name_hash};
+    use snforge_std::signature::stark_curve::{StarkCurveKeyPairImpl, StarkCurveSignerImpl, StarkCurveVerifierImpl};
+    use snforge_std::signature::{KeyPairTrait, KeyPair};
 
 
-#[test]
-fn test_domain_separator() {
-    let (component_state, mock_state) = setup();
-    let domain_separator = component_state.DOMAIN_SEPARATOR();
-    mock_state.erc20permit.DOMAIN_SEPARATOR();
-    assert_eq!(domain_separator, STARKNET_DOMAIN_TYPE_HASH);
-}
+    fn deploy_erc20_permit(name: ByteArray, symbol: ByteArray, fixed_supply: u256, recipient: ContractAddress) -> ERC20PermitABIDispatcher {
+        let contract_hash = declare("ERC2612").unwrap();
+        let mut constructor_args: Array<felt252> = ArrayTrait::new();
+        Serde::serialize(@name, ref constructor_args);
+        Serde::serialize(@symbol, ref constructor_args);
+        Serde::serialize(@fixed_supply, ref constructor_args);
+        Serde::serialize(@recipient, ref constructor_args);
 
-#[test]
-#[should_panic(expected: ('Permit: Expired deadline',))]
-fn test_permit_expired_deadline() {
-    let (mut component_state, _) = setup();
-    let spender = contract_address_const::<5>();
-    let amount: u256 = 10;
-    let deadline: u128 = 'ts9';
-    let signature = array![0, 0];
+        let (contract_address, _) = contract_hash.deploy(@constructor_args).unwrap();
 
-    testing::set_caller_address(OWNER());
+        return ERC20PermitABIDispatcher {contract_address: contract_address};
+    }
 
-    testing::set_block_timestamp('ts10');
-    component_state.permit(
-        OWNER(),
-        spender,
-        amount,
-        deadline,
-        signature,
-    );
-}
+    fn get_stark_keys() -> (felt252, felt252) {
+        // StarkCurve
+        let key_pair = KeyPairTrait::<felt252, felt252>::generate();
+        return (key_pair.public_key, key_pair.secret_key);
+    }
 
-#[test]
-#[should_panic(expected: ('Permit: Invalid signature',))]
-fn test_permit_invalid_signature() {
-    let (mut component_state, _) = setup();
-    let owner = setup_account();
-    let spender = contract_address_const::<5>();
-    let amount: u256 = 10;
-    let deadline: u128 = 'ts10';
-    let signature = array![0, 0];
 
-    testing::set_caller_address(owner);
-    component_state.permit(
-        owner,
-        spender,
-        amount,
-        deadline,
-        signature,
-    );
-}
+    fn deploy_account(contract_hash: ContractClass) -> (AccountUpgradeableABIDispatcher, KeyPair<felt252, felt252>) {
+        let mut constructor_args: Array<felt252> = ArrayTrait::new();
+        let key_pair = KeyPairTrait::<felt252, felt252>::generate();
+        Serde::serialize(@key_pair.public_key, ref constructor_args);
 
-#[test]
-fn test_permit() {
-    testing::set_chain_id('SN_TEST');
+        let (contract_address, _) = contract_hash.deploy(@constructor_args).unwrap();
 
-    let owner = contract_address_const::<
-        0x0460b6b4024b9dbdf26edcd2ac070b1acfb05ee3640d47da142a5ee045c2a960
-    >();
-    let spender = RECIPIENT();
-    let amount: u256 = 10;
-    let deadline: u128 = 'ts10';
+        return (
+            AccountUpgradeableABIDispatcher {contract_address: contract_address}, 
+            key_pair
+        );
+    }
 
-    let permit = Permit {
-        spender: spender,
-        value: amount,
-        deadline: deadline,
-    };
+    #[test]
+    fn test_deploy() {
+        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, OWNER());
 
-    let hash = permit.get_message_hash(owner);
-    let expected_hash = 0x4164cdafeae9c8166dad9f38b3159977a93ac79f283bd7f446e778bca45084c;
-    assert_eq!(hash, expected_hash);
+        assert_eq!(contract.name(), NAME());
+        assert_eq!(contract.symbol(), SYMBOL());
+        assert_eq!(contract.total_supply(), SUPPLY);
+        assert_eq!(contract.balance_of(OWNER()), SUPPLY);
+    }
+
+    #[test]
+    #[should_panic(expected: ('Permit: Expired deadline', ))]
+    fn test_permit_expired_deadline() {
+        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, OWNER());
+
+        let deadline = 'ts9';
+        let amount = 100;
+        let signature: Array<felt252> = ArrayTrait::new();
+        start_warp(CheatTarget::All, 'ts10');
+        contract.permit(OWNER(), RECIPIENT(), amount, deadline, signature);
+    }
+
+    #[test]
+    #[should_panic(expected: ('Permit: Invalid signature', ))]
+    fn test_permit_invalid_signature() {
+        let account_class_hash = declare("AccountUpgradeable").unwrap();
+        
+        let (owner, _) = deploy_account(account_class_hash);
+        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner.contract_address);
+        let (recipient, _) = deploy_account(account_class_hash);
+        let deadline = 'ts10';
+        let amount = 100;
+
+        let signature: Array<felt252> = ArrayTrait::new();
+        start_warp(CheatTarget::All, 'ts9');
+        contract.permit(owner.contract_address, recipient.contract_address, amount, deadline, signature);
+    }
+
+    #[test]
+    fn test_permit() {
+        let account_class_hash = declare("AccountUpgradeable").unwrap();
+        
+        let (owner, key_pair) = deploy_account(account_class_hash);
+        let (recipient, _) = deploy_account(account_class_hash);
+        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner.contract_address);
+        let deadline = 'ts10';
+        let amount = 100;
+
+        let permit = Permit {
+            spender: recipient.contract_address,
+            value: amount,
+            deadline: deadline,
+        };
+        
+        let msg_hash = permit.get_message_hash(owner.contract_address);
+        let (r, s): (felt252, felt252) = key_pair.sign(msg_hash);
+
+        let mut signature: Array<felt252> = ArrayTrait::new();
+        Serde::serialize(@r, ref signature);
+        Serde::serialize(@s, ref signature);
+        contract.permit(owner.contract_address, recipient.contract_address, amount, deadline, signature);
+
+        let mut spy = spy_events(SpyOn::One(contract.contract_address));
+        spy.fetch_events();
+        println!("events: {}", spy.events.is_empty());
+        // let (_, event) = spy.events.is_empty();
+
+        // assert(event.keys.at(0) == @event_name_hash('Approval'), 'Event name mismatch');
+
+        
+        assert_eq!(contract.allowance(owner.contract_address, recipient.contract_address), amount);
+        assert_eq!(contract.balance_of(owner.contract_address), SUPPLY);
+        println!("allowance: {}", contract.allowance(owner.contract_address, recipient.contract_address));
+
+        contract.transfer_from(owner.contract_address, recipient.contract_address, 50);
+
+        assert_eq!(contract.balance_of(owner.contract_address), SUPPLY - 50);
+        assert_eq!(contract.balance_of(recipient.contract_address), amount);
+    }
 }
