@@ -114,15 +114,8 @@ mod ERC20PermitComponent {
 }
 
 
-// sn_keccak("\"Permit\"(\"spender\":\"ContractAddress\",\"value\":\"u256\",\"deadline\":\"u128\")\"u256\"(\"low\":\"felt\",\"high\":\"felt\")")
-// Result of computing off-cahin the above string using StarknetJS
 const PERMIT_TYPE_HASH: felt252 = 
-    selector!("Permit(spender:ContractAddress,value:u256,deadline:u128)u256(low:felt,high:felt)");
-
-// sn_keccak("\"u256\"(\"low\":\"felt\",\"high\":\"felt\)")
-// Result of computing off-cahin the above string using StarknetJS
-const U256_TYPE_HASH: felt252 =
-    selector!("u256(low:felt,high:felt)");
+    selector!("\"Permit\"(\"spender\":\"ContractAddress\",\"value\":\"u256\",\"deadline\":\"u128\")\"u256\"(\"low\":\"felt\",\"high\":\"felt\")");
 
 
 //
@@ -137,23 +130,11 @@ struct Permit {
     deadline: u128,
 }
 
-impl StructHashImpl of StructHash<Permit> {
+impl StructHashPermit of StructHash<Permit> {
     fn hash_struct(self: @Permit) -> felt252 {
         let hash_state = PoseidonTrait::new();
         hash_state
             .update_with(PERMIT_TYPE_HASH)
-            .update_with(*self.spender)
-            .update_with(self.value.hash_struct())
-            .update_with(*self.deadline)
-            .finalize()
-    }
-}
-
-impl StructHashU256 of StructHash<u256> {
-    fn hash_struct(self: @u256) -> felt252 {
-        let state = PoseidonTrait::new();
-        state
-            .update_with(U256_TYPE_HASH)
             .update_with(*self)
             .finalize()
     }
