@@ -108,7 +108,14 @@ mod ERC20PermitComponent {
         // @return The domain separator value as a felt252.
         //
         fn DOMAIN_SEPARATOR(self: @ComponentState<TContractState>) -> felt252 {
-            return STARKNET_DOMAIN_TYPE_HASH;
+            let component_domain = StarknetDomain {
+                name: SNIP12Metadata::name(),
+                version: SNIP12Metadata::version(),
+                chain_id: get_tx_info().unbox().chain_id,
+                revision: 1
+            };
+            
+            return component_domain.hash_struct();
         }
     }
 }
