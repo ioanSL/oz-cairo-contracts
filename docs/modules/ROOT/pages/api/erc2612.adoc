@@ -1,0 +1,27 @@
+= ERC2612
+
+Reference of interfaces and utilities related to ERC2612 contracts.
+
+== Core
+
+[.contract-index]
+.Functions
+--
+* xref:#IERC2612-permit[`++permit()++`]
+* xref:#IERC2612-DOMAIN_SEPARATOR[`++DOMAIN_SEPARATOR()++`]
+--
+
+[#IERC2612-Functions]
+==== Functions
+
+[.contract-item]
+[[IERC2612-permit]]
+==== `[.contract-item-name]#++permit++#(owner: ContractAddress, spender: ContractAddress, value: u256, deadline: u128, signature: Array<felt252>)` [.item-kind]#external#
+
+Allows the owner of the token to approve the spender to transfer a specified amount of tokens on their behalf.
+
+[.contract-item]
+[[IERC2612-DOMAIN_SEPARATOR]]
+==== `[.contract-item-name]#++DOMAIN_SEPARATOR++#()` [.item-kind]#external#
+
+Returns the domain separator for the ERC20 permit extension.
