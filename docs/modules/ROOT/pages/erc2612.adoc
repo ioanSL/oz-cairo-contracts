@@ -141,3 +141,72 @@ it's good practice to initialize the ERC20 component, although it's not mandator
 
 Understand that your contract will implement SNIP12MetadataImpl, because each contract has a unique domain. This domain, 
 which becomes fixed once the contract class hash is declared on-chain, cannot be altered thereafter.
+
+
+=== Message Signing
+
+You may have observed that one of the arguments in the permit function is named 'signature', which is an array of felt252. This argument is unique as it is employed to convey a signed message to the smart contract. Subsequently, the smart contract authenticates the signer ensuring it aligns with the owner's account address. Here's the method for constructing such a message.
+
+To build this signature, we need to examine the Starknet Domain. Every implemented ERC2612 smart contract will possess a defined domain as follows:
+
+[,cairo]
+----
+StarknetDomain {
+    name: 'DAPP_NAME',
+    version: 'DAPP_VERSION',
+    chain_id: 'CHAIN_ID',
+    revision: 1,
+}
+
+----
+
+Each contract's specific domain for the smart contract can be retrieved using the DOMAIN_SEPARATOR() method, which provides this data in hexadecimal format.
+
+The second portion of the message involves a structure referred to as Permit. This structure holds information such as the token spender, the amount, and a deadline for sending the message to the smart contract.
+
+[,cairo]
+----
+Permit {
+    spender: ContractAddress,
+    value: u256,
+    deadline: u128,
+}
+
+----
+
+The fields for spender, value, and deadline need to align with the permit arguments when the smart contract function is invoked. Subsequently, the smart contract will validate the message content to ensure all elements are accurate and the message signer is indeed the owner of the spending limit.
+
+When consolidating all this data, your message should be structured as follows:
+
+[,typescript]
+----
+{
+  types: {
+    StarknetDomain: [
+      { name: 'name', type: 'shortstring' },
+      { name: 'version', type: 'shortstring' },
+      { name: 'chainId', type: 'shortstring' },
+      { name: 'revision', type: 'shortstring' },
+    ],
+    Permit: [
+      { name: 'spender', type: 'ContractAddress' },
+      { name: 'value', type: 'u256'},
+      { name: 'deadline', type: 'u128' },
+    ],
+  },
+  primaryType: 'Permit',
+  domain: {
+    name: 'ERC2612',
+    version: 'v1',
+    chainId: 'SN_TEST',
+    revision: '1',
+  },
+  message: {
+    spender: 'RECIPIENT',
+    value: 100
+    deadline: 'ts10',
+  },
+}
+----
+
+NOTE: Each field in the message also holds details about its type. This data is crucial for correctly converting the information within the message to the format anticipated by the smart contract.
