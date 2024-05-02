@@ -25,14 +25,22 @@ trait IPermit<TState> {
 
 #[starknet::component]
 mod ERC20PermitComponent {
-    use starknet::get_block_timestamp;
+    use core::traits::Destruct;
+    use starknet::{get_block_timestamp, get_tx_info};
+
+    use openzeppelin::utils::cryptography::snip12::StructHash;
     use openzeppelin::account::dual_account::{DualCaseAccount, DualCaseAccountABI};
     use openzeppelin::utils::cryptography::interface::INonces;
     use openzeppelin::token::erc20::{ERC20Component, ERC20Component::InternalImpl as ERC20InternalTrait};
     use openzeppelin::token::erc20::interface::IERC20;
     use openzeppelin::utils::cryptography::nonces::NoncesComponent::InternalTrait as NoncesInternalTrait;
     use openzeppelin::utils::cryptography::nonces::NoncesComponent;
-    use super::{ContractAddress, IPermit, Permit, OffchainMessageHash, SNIP12Metadata, STARKNET_DOMAIN_TYPE_HASH};
+    
+    use super::{
+        HashStateTrait, Hash, StarknetDomain, ContractAddress, IPermit, Permit, OffchainMessageHash, SNIP12Metadata, 
+        STARKNET_DOMAIN_TYPE_HASH, PoseidonTrait, HashStateExTrait, PERMIT_TYPE_HASH
+    };
+
 
     #[storage]
     struct Storage {}
