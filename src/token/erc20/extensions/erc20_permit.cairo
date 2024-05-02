@@ -4,7 +4,8 @@ use openzeppelin::utils::cryptography::snip12::{
     OffchainMessageHash, 
     StructHash, 
     SNIP12Metadata, 
-    STARKNET_DOMAIN_TYPE_HASH
+    STARKNET_DOMAIN_TYPE_HASH,
+    StarknetDomain
 };
 use poseidon::PoseidonTrait;
 use starknet::ContractAddress;
