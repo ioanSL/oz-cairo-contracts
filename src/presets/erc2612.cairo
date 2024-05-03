@@ -1,10 +1,11 @@
-
 #[starknet::contract]
 mod ERC2612 {
     use openzeppelin::token::erc20::extensions::{ERC20PermitComponent};
     use openzeppelin::token::erc20::{ERC20Component, ERC20HooksEmptyImpl};
     use openzeppelin::utils::cryptography::nonces::NoncesComponent;
-    use openzeppelin::utils::cryptography::snip12::{OffchainMessageHash, StructHash, SNIP12Metadata};
+    use openzeppelin::utils::cryptography::snip12::{
+        OffchainMessageHash, StructHash, SNIP12Metadata
+    };
     use starknet::ContractAddress;
 
     component!(path: ERC20Component, storage: erc20, event: ERC20Event);
@@ -12,7 +13,8 @@ mod ERC2612 {
     component!(path: ERC20PermitComponent, storage: erc20permit, event: ERC20PermitEvent);
 
     #[abi(embed_v0)]
-    impl ERC20PermitComponentImpl = ERC20PermitComponent::ERC20PermitImpl<ContractState>;
+    impl ERC20PermitComponentImpl =
+        ERC20PermitComponent::ERC20PermitImpl<ContractState>;
 
     // ERC20 Mixin
     #[abi(embed_v0)]
@@ -30,7 +32,6 @@ mod ERC2612 {
         nonces: NoncesComponent::Storage,
         #[substorage(v0)]
         erc20permit: ERC20PermitComponent::Storage,
-        
     }
 
     #[event]

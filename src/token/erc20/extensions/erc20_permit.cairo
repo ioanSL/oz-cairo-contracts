@@ -1,11 +1,7 @@
 use core::hash::HashStateExTrait;
 use hash::{HashStateTrait, Hash};
 use openzeppelin::utils::cryptography::snip12::{
-    OffchainMessageHash, 
-    StructHash, 
-    SNIP12Metadata, 
-    STARKNET_DOMAIN_TYPE_HASH,
-    StarknetDomain
+    OffchainMessageHash, StructHash, SNIP12Metadata, STARKNET_DOMAIN_TYPE_HASH, StarknetDomain
 };
 use poseidon::PoseidonTrait;
 use starknet::ContractAddress;
@@ -27,19 +23,21 @@ trait IPermit<TState> {
 #[starknet::component]
 mod ERC20PermitComponent {
     use core::traits::Destruct;
-    use starknet::{get_block_timestamp, get_tx_info};
-
-    use openzeppelin::utils::cryptography::snip12::StructHash;
     use openzeppelin::account::dual_account::{DualCaseAccount, DualCaseAccountABI};
-    use openzeppelin::utils::cryptography::interface::INonces;
-    use openzeppelin::token::erc20::{ERC20Component, ERC20Component::InternalImpl as ERC20InternalTrait};
     use openzeppelin::token::erc20::interface::IERC20;
+    use openzeppelin::token::erc20::{
+        ERC20Component, ERC20Component::InternalImpl as ERC20InternalTrait
+    };
+    use openzeppelin::utils::cryptography::interface::INonces;
     use openzeppelin::utils::cryptography::nonces::NoncesComponent::InternalTrait as NoncesInternalTrait;
     use openzeppelin::utils::cryptography::nonces::NoncesComponent;
-    
+
+    use openzeppelin::utils::cryptography::snip12::StructHash;
+    use starknet::{get_block_timestamp, get_tx_info};
+
     use super::{
-        HashStateTrait, Hash, StarknetDomain, ContractAddress, IPermit, Permit, OffchainMessageHash, SNIP12Metadata, 
-        STARKNET_DOMAIN_TYPE_HASH, PoseidonTrait, HashStateExTrait, PERMIT_TYPE_HASH
+        HashStateTrait, Hash, StarknetDomain, ContractAddress, IPermit, Permit, OffchainMessageHash,
+        SNIP12Metadata, STARKNET_DOMAIN_TYPE_HASH, PoseidonTrait, HashStateExTrait, PERMIT_TYPE_HASH
     };
 
 
@@ -49,7 +47,7 @@ mod ERC20PermitComponent {
     #[event]
     #[derive(Drop, starknet::Event)]
     enum Event {}
-    
+
 
     mod Errors {
         const INVALID_SIGNATURE: felt252 = 'Permit: Invalid signature';
@@ -66,7 +64,6 @@ mod ERC20PermitComponent {
         +SNIP12Metadata,
         +Drop<TContractState>
     > of IPermit<ComponentState<TContractState>> {
-
         //
         // Allows the owner of the token to approve the spender to transfer a specified amount of tokens on their behalf.
         //
@@ -78,30 +75,26 @@ mod ERC20PermitComponent {
         // @param signature The cryptographic signature of the permit.
         //
         fn permit(
-            ref self: ComponentState<TContractState>, 
-            owner: ContractAddress, 
-            spender: ContractAddress, 
-            value: u256, 
+            ref self: ComponentState<TContractState>,
+            owner: ContractAddress,
+            spender: ContractAddress,
+            value: u256,
             deadline: u128,
             signature: Array<felt252>
         ) {
             assert(get_block_timestamp().into() <= deadline, Errors::INVALID_DEADLINE);
-            
+
             let mut nonces_component = get_dep_component_mut!(ref self, Nonces);
             let nonce = nonces_component.nonces(owner);
             nonces_component.use_checked_nonce(owner, nonce);
 
-            let permit = Permit {
-                spender, 
-                value, 
-                deadline,
-            };
+            let permit = Permit { spender, value, deadline, };
             let hash = permit.get_message_hash(owner);
 
             let is_valid_signature_felt = DualCaseAccount { contract_address: owner }
                 .is_valid_signature(hash, signature);
 
-            let is_valid_signature = is_valid_signature_felt == starknet::VALIDATED 
+            let is_valid_signature = is_valid_signature_felt == starknet::VALIDATED
                 || is_valid_signature_felt == 1;
 
             assert(is_valid_signature, Errors::INVALID_SIGNATURE);
@@ -123,15 +116,17 @@ mod ERC20PermitComponent {
                 chain_id: get_tx_info().unbox().chain_id,
                 revision: 1
             };
-            
+
             return component_domain.hash_struct();
         }
     }
 }
 
 
-const PERMIT_TYPE_HASH: felt252 = 
-    selector!("\"Permit\"(\"spender\":\"ContractAddress\",\"value\":\"u256\",\"deadline\":\"u128\")\"u256\"(\"low\":\"felt\",\"high\":\"felt\")");
+const PERMIT_TYPE_HASH: felt252 =
+    selector!(
+        "\"Permit\"(\"spender\":\"ContractAddress\",\"value\":\"u256\",\"deadline\":\"u128\")\"u256\"(\"low\":\"felt\",\"high\":\"felt\")"
+    );
 
 
 //
@@ -149,9 +144,6 @@ struct Permit {
 impl StructHashPermit of StructHash<Permit> {
     fn hash_struct(self: @Permit) -> felt252 {
         let hash_state = PoseidonTrait::new();
-        hash_state
-            .update_with(PERMIT_TYPE_HASH)
-            .update_with(*self)
-            .finalize()
+        hash_state.update_with(PERMIT_TYPE_HASH).update_with(*self).finalize()
     }
 }
