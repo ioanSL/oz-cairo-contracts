@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod testERC20Permit {
-    use core::array::ArrayTrait;
     use core::hash::HashStateExTrait;
     use hash::HashStateTrait;
     use openzeppelin::presets::erc2612::ERC2612::SNIP12MetadataImpl;
@@ -59,7 +58,7 @@ mod testERC20Permit {
     fn deploy_account(
         contract_hash: ContractClass
     ) -> (ContractAddress, KeyPair<felt252, felt252>) {
-        let mut constructor_args: Array<felt252> = ArrayTrait::new();
+        let mut constructor_args: Array<felt252> = array![];
         let key_pair = KeyPairTrait::<felt252, felt252>::generate();
         constructor_args.append_serde(key_pair.public_key);
 
@@ -75,7 +74,7 @@ mod testERC20Permit {
 
         let deadline = 'ts9';
         let amount = 100;
-        let signature: Array<felt252> = ArrayTrait::new();
+        let signature: Array<felt252> = array![];
         start_warp(CheatTarget::All, 'ts10');
         contract.permit(OWNER(), RECIPIENT(), amount, deadline, signature);
     }
@@ -91,7 +90,7 @@ mod testERC20Permit {
         let deadline = 'ts10';
         let amount = 100;
 
-        let signature: Array<felt252> = ArrayTrait::new();
+        let signature: Array<felt252> = array![];
         start_warp(CheatTarget::All, 'ts9');
         contract
             .permit(
@@ -117,7 +116,7 @@ mod testERC20Permit {
         let msg_hash = permit.get_message_hash(owner);
         let (r, s): (felt252, felt252) = key_pair.sign(msg_hash);
 
-        let mut signature: Array<felt252> = ArrayTrait::new();
+        let mut signature: Array<felt252> = array![];
         signature.append_serde(r);
         signature.append_serde(s);
 
@@ -204,7 +203,7 @@ mod testERC20Permit {
 
         let (r, s): (felt252, felt252) = key_pair.sign(offchain_msg_hash);
 
-        let mut signature: Array<felt252> = ArrayTrait::new();
+        let mut signature: Array<felt252> = array![];
         signature.append_serde(r);
         signature.append_serde(s);
 
