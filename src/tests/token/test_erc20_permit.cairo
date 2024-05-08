@@ -200,6 +200,7 @@ mod testERC20Permit {
 
         let offchain_domain = PoseidonTrait::new();
         let offchain_msg_hash = offchain_domain
+            .update_with('StarkNet Message')
             .update_with(STARKNET_DOMAIN_TYPE_HASH)
             .update_with(contract_domain.hash_struct())
             .update_with(permit.hash_struct())
