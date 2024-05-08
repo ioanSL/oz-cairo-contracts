@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod testERC20Permit {
-    use core::hash::HashStateExTrait;
+    use core::clone::Clone;
+use core::hash::HashStateExTrait;
     use hash::HashStateTrait;
     use openzeppelin::presets::erc2612::ERC2612::SNIP12MetadataImpl;
     use openzeppelin::presets::interfaces::account::AccountUpgradeableABIDispatcher;
@@ -67,6 +68,36 @@ mod testERC20Permit {
         return (contract_address, key_pair);
     }
 
+    fn generate_signature(
+        owner: ContractAddress, spender: ContractAddress, amount: u256, nonce: felt252, deadline: u128,
+        key_pair: KeyPair<felt252, felt252>
+    ) -> Array<felt252> {
+        let permit = Permit {
+            owner: owner, spender: spender, value: amount, nonce: 0, deadline: deadline,
+        };
+
+        let msg_hash = permit.get_message_hash(owner);
+        let (r, s): (felt252, felt252) = key_pair.sign(msg_hash);
+
+        let mut signature: Array<felt252> = array![];
+        signature.append_serde(r);
+        signature.append_serde(s);
+
+        return signature;
+    }
+
+    fn permit_setup() -> (ContractAddress, KeyPair<felt252, felt252>, ContractAddress, ContractAddress, ERC20PermitABIDispatcher, u256, u128) {
+        let account_class_hash = declare("AccountUpgradeable").unwrap();
+        let (owner, key_pair) = deploy_account(account_class_hash);
+        let (spender, _) = deploy_account(account_class_hash);
+        let (relayer, _) = deploy_account(account_class_hash);
+        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner);
+        let deadline = 'ts10';
+        let amount = 100;
+
+        return (owner, key_pair, spender, relayer, contract, amount, deadline);
+    }
+
     #[test]
     #[should_panic(expected: ('Permit: Expired deadline',))]
     fn test_permit_expired_deadline() {
@@ -82,13 +113,7 @@ mod testERC20Permit {
     #[test]
     #[should_panic(expected: ('Permit: Invalid signature',))]
     fn test_permit_invalid_signature() {
-        let account_class_hash = declare("AccountUpgradeable").unwrap();
-
-        let (owner, _) = deploy_account(account_class_hash);
-        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner);
-        let (spender, _) = deploy_account(account_class_hash);
-        let deadline = 'ts10';
-        let amount = 100;
+        let (owner, _, spender, _, contract, amount, deadline) = permit_setup();
 
         let signature: Array<felt252> = array![];
         start_warp(CheatTarget::All, 'ts9');
@@ -100,25 +125,9 @@ mod testERC20Permit {
 
     #[test]
     fn test_permit() {
-        let account_class_hash = declare("AccountUpgradeable").unwrap();
-
-        let (owner, key_pair) = deploy_account(account_class_hash);
-        let (spender, _) = deploy_account(account_class_hash);
-        let (relayer, _) = deploy_account(account_class_hash);
-        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner);
-        let deadline = 'ts10';
-        let amount = 100;
-
-        let permit = Permit {
-            owner: owner, spender: spender, value: amount, nonce: 0, deadline: deadline,
-        };
-
-        let msg_hash = permit.get_message_hash(owner);
-        let (r, s): (felt252, felt252) = key_pair.sign(msg_hash);
-
-        let mut signature: Array<felt252> = array![];
-        signature.append_serde(r);
-        signature.append_serde(s);
+        let (owner, key_pair, spender, relayer, contract, amount, deadline) = permit_setup();
+        let nonce = 0;
+        let signature = generate_signature(owner, spender, amount, nonce, deadline, key_pair);
 
         start_prank(CheatTarget::One(contract.contract_address), relayer);
         contract
@@ -145,10 +154,46 @@ mod testERC20Permit {
     }
 
     #[test]
+    #[should_panic(expected: ('Permit: Invalid signature',))]
+    fn test_permit_duplicated_signature() {
+        let (owner, key_pair, spender, relayer, contract, amount, deadline) = permit_setup();
+        let nonce = 0;
+        let signature = generate_signature(owner, spender, amount, nonce, deadline, key_pair);
+
+        start_prank(CheatTarget::One(contract.contract_address), relayer);
+        contract
+            .permit(
+                owner, spender, amount, deadline, signature.clone()
+            );
+        stop_prank(CheatTarget::One(contract.contract_address));
+
+        start_prank(CheatTarget::One(contract.contract_address), relayer);
+        contract
+            .permit(
+                owner, spender, amount, deadline, signature
+            );
+        stop_prank(CheatTarget::One(contract.contract_address));
+    }
+
+    #[test]
+    #[should_panic(expected: ('Permit: Invalid signature',))]
+    fn test_permit_wrong_nonce() {
+        let (owner, key_pair, spender, relayer, contract, amount, deadline) = permit_setup();
+        let nonce = 300;
+        let signature = generate_signature(owner, spender, amount, nonce, deadline, key_pair);
+
+        start_prank(CheatTarget::One(contract.contract_address), relayer);
+        contract
+            .permit(
+                owner, spender, amount, deadline, signature
+            );
+        stop_prank(CheatTarget::One(contract.contract_address));
+
+    }
+
+    #[test]
     fn test_domain_separator() {
-        let account_class_hash = declare("AccountUpgradeable").unwrap();
-        let (owner, _) = deploy_account(account_class_hash);
-        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner);
+        let (_, _, _, _, contract, _, _) = permit_setup();
         let domain = contract.DOMAIN_SEPARATOR();
 
         let contract_domain = StarknetDomain {
@@ -162,9 +207,7 @@ mod testERC20Permit {
 
     #[test]
     fn test_wrong_domain_separator() {
-        let account_class_hash = declare("AccountUpgradeable").unwrap();
-        let (owner, _) = deploy_account(account_class_hash);
-        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner);
+        let (_, _, _, _, contract, _, _) = permit_setup();
         let domain = contract.DOMAIN_SEPARATOR();
 
         let contract_domain = StarknetDomain {
@@ -177,13 +220,7 @@ mod testERC20Permit {
     #[test]
     #[should_panic(expected: ('Permit: Invalid signature',))]
     fn test_permit_with_wrong_domain_separator() {
-        let account_class_hash = declare("AccountUpgradeable").unwrap();
-        let (owner, key_pair) = deploy_account(account_class_hash);
-        let (spender, _) = deploy_account(account_class_hash);
-        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner);
-
-        let amount = 100;
-        let deadline = 'ts10';
+        let (owner, key_pair, spender, _, contract, amount, deadline) = permit_setup();
 
         let permit = Permit {
             owner: owner, spender: spender, value: amount, nonce: 0, deadline: deadline,
