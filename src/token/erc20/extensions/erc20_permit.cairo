@@ -22,7 +22,6 @@ trait IPermit<TState> {
 
 #[starknet::component]
 mod ERC20PermitComponent {
-    use core::traits::Destruct;
     use openzeppelin::account::dual_account::{DualCaseAccount, DualCaseAccountABI};
     use openzeppelin::token::erc20::interface::IERC20;
     use openzeppelin::token::erc20::{
