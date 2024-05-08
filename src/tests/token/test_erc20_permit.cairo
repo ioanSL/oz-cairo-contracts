@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod testERC20Permit {
-    use core::clone::Clone;
+    use core::option::OptionTrait;
+use core::array::ArrayTrait;
+use core::clone::Clone;
 use core::hash::HashStateExTrait;
     use hash::HashStateTrait;
     use openzeppelin::presets::erc2612::ERC2612::SNIP12MetadataImpl;
@@ -73,7 +75,7 @@ use core::hash::HashStateExTrait;
         key_pair: KeyPair<felt252, felt252>
     ) -> Array<felt252> {
         let permit = Permit {
-            owner: owner, spender: spender, value: amount, nonce: 0, deadline: deadline,
+            owner: owner, spender: spender, value: amount, nonce: nonce, deadline: deadline,
         };
 
         let msg_hash = permit.get_message_hash(owner);
@@ -171,6 +173,64 @@ use core::hash::HashStateExTrait;
         contract
             .permit(
                 owner, spender, amount, deadline, signature
+            );
+        stop_prank(CheatTarget::One(contract.contract_address));
+    }
+
+    #[test]
+    #[should_panic(expected: ('Permit: Invalid signature',))]
+    fn test_permit_invalid_signature_s() {
+        let (owner, key_pair, spender, relayer, contract, amount, deadline) = permit_setup();
+        let nonce = 0;
+        let mut signature = generate_signature(owner, spender, amount, nonce, deadline, key_pair);
+
+        signature.pop_front().unwrap();
+        signature.append(0x0987);
+        //[r, s] = signature[0x..., 0x0987]
+
+        start_prank(CheatTarget::One(contract.contract_address), relayer);
+        contract
+            .permit(
+                owner, spender, amount, deadline, signature.clone()
+            );
+        stop_prank(CheatTarget::One(contract.contract_address));
+    }
+
+    #[test]
+    #[should_panic(expected: ('Permit: Invalid signature',))]
+    fn test_permit_invalid_signature_r() {
+        let (owner, key_pair, spender, relayer, contract, amount, deadline) = permit_setup();
+        let nonce = 0;
+        let mut signature = generate_signature(owner, spender, amount, nonce, deadline, key_pair);
+
+        let s = signature.pop_front().unwrap();
+        signature.pop_front().unwrap();
+        signature.append(0x0987);
+        signature.append(s);
+        //[r, s] = signature[0x0987, 0x...]
+
+        start_prank(CheatTarget::One(contract.contract_address), relayer);
+        contract
+            .permit(
+                owner, spender, amount, deadline, signature.clone()
+            );
+        stop_prank(CheatTarget::One(contract.contract_address));
+    }
+
+    #[test]
+    #[should_panic(expected: ('Permit: Invalid signature',))]
+    fn test_permit_invalid_signature_extra() {
+        let (owner, key_pair, spender, relayer, contract, amount, deadline) = permit_setup();
+        let nonce = 0;
+        let mut signature = generate_signature(owner, spender, amount, nonce, deadline, key_pair);
+
+        signature.append(0x1234);
+        //[r, s] = signature[0x.., 0x..., 0x1234]
+
+        start_prank(CheatTarget::One(contract.contract_address), relayer);
+        contract
+            .permit(
+                owner, spender, amount, deadline, signature.clone()
             );
         stop_prank(CheatTarget::One(contract.contract_address));
     }
