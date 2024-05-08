@@ -157,7 +157,7 @@ use core::hash::HashStateExTrait;
 
     #[test]
     #[should_panic(expected: ('Permit: Invalid signature',))]
-    fn test_permit_duplicated_signature() {
+    fn test_permit_reused_signature() {
         let (owner, key_pair, spender, relayer, contract, amount, deadline) = permit_setup();
         let nonce = 0;
         let signature = generate_signature(owner, spender, amount, nonce, deadline, key_pair);
@@ -227,6 +227,21 @@ use core::hash::HashStateExTrait;
         signature.append(0x1234);
         //[r, s] = signature[0x.., 0x..., 0x1234]
 
+        start_prank(CheatTarget::One(contract.contract_address), relayer);
+        contract
+            .permit(
+                owner, spender, amount, deadline, signature.clone()
+            );
+        stop_prank(CheatTarget::One(contract.contract_address));
+    }
+
+    #[test]
+    #[should_panic(expected: ('Permit: Invalid signature',))]
+    fn test_permit_invalid_signer() {
+        let (owner, key_pair, spender, relayer, contract, amount, deadline) = permit_setup();
+        let nonce = 0;
+        let mut signature = generate_signature(relayer, spender, amount, nonce, deadline, key_pair);
+        
         start_prank(CheatTarget::One(contract.contract_address), relayer);
         contract
             .permit(
