@@ -60,14 +60,14 @@ mod testERC20Permit {
 
     fn deploy_account(
         contract_hash: ContractClass
-    ) -> (AccountUpgradeableABIDispatcher, KeyPair<felt252, felt252>) {
+    ) -> (ContractAddress, KeyPair<felt252, felt252>) {
         let mut constructor_args: Array<felt252> = ArrayTrait::new();
         let key_pair = KeyPairTrait::<felt252, felt252>::generate();
         Serde::serialize(@key_pair.public_key, ref constructor_args);
 
         let (contract_address, _) = contract_hash.deploy(@constructor_args).unwrap();
 
-        return (AccountUpgradeableABIDispatcher { contract_address: contract_address }, key_pair);
+        return (contract_address, key_pair);
     }
 
     #[test]
@@ -98,7 +98,7 @@ mod testERC20Permit {
         let account_class_hash = declare("AccountUpgradeable").unwrap();
 
         let (owner, _) = deploy_account(account_class_hash);
-        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner.contract_address);
+        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner);
         let (spender, _) = deploy_account(account_class_hash);
         let deadline = 'ts10';
         let amount = 100;
@@ -107,7 +107,7 @@ mod testERC20Permit {
         start_warp(CheatTarget::All, 'ts9');
         contract
             .permit(
-                owner.contract_address, spender.contract_address, amount, deadline, signature
+                owner, spender, amount, deadline, signature
             );
     }
 
@@ -118,44 +118,44 @@ mod testERC20Permit {
         let (owner, key_pair) = deploy_account(account_class_hash);
         let (spender, _) = deploy_account(account_class_hash);
         let (relayer, _) = deploy_account(account_class_hash);
-        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner.contract_address);
+        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner);
         let deadline = 'ts10';
         let amount = 100;
 
         let permit = Permit {
-            spender: spender.contract_address, value: amount, deadline: deadline,
+            spender: spender, value: amount, deadline: deadline,
         };
 
-        let msg_hash = permit.get_message_hash(owner.contract_address);
+        let msg_hash = permit.get_message_hash(owner);
         let (r, s): (felt252, felt252) = key_pair.sign(msg_hash);
 
         let mut signature: Array<felt252> = ArrayTrait::new();
         Serde::serialize(@r, ref signature);
         Serde::serialize(@s, ref signature);
 
-        start_prank(CheatTarget::One(contract.contract_address), relayer.contract_address);
+        start_prank(CheatTarget::One(contract.contract_address), relayer);
         contract
             .permit(
-                owner.contract_address, spender.contract_address, amount, deadline, signature
+                owner, spender, amount, deadline, signature
             );
         stop_prank(CheatTarget::One(contract.contract_address));
 
-        assert_eq!(contract.allowance(owner.contract_address, spender.contract_address), amount);
-        assert_eq!(contract.balance_of(owner.contract_address), SUPPLY);
+        assert_eq!(contract.allowance(owner, spender), amount);
+        assert_eq!(contract.balance_of(owner), SUPPLY);
 
-        start_prank(CheatTarget::One(contract.contract_address), spender.contract_address);
-        contract.transfer_from(owner.contract_address, spender.contract_address, amount);
+        start_prank(CheatTarget::One(contract.contract_address), spender);
+        contract.transfer_from(owner, spender, amount);
         stop_prank(CheatTarget::One(contract.contract_address));
 
-        assert_eq!(contract.balance_of(owner.contract_address), SUPPLY - amount);
-        assert_eq!(contract.balance_of(spender.contract_address), amount);
+        assert_eq!(contract.balance_of(owner), SUPPLY - amount);
+        assert_eq!(contract.balance_of(spender), amount);
     }
 
     #[test]
     fn test_domain_separator() {
         let account_class_hash = declare("AccountUpgradeable").unwrap();
         let (owner, _) = deploy_account(account_class_hash);
-        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner.contract_address);
+        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner);
         let domain = contract.DOMAIN_SEPARATOR();
 
         let contract_domain = StarknetDomain {
@@ -169,7 +169,7 @@ mod testERC20Permit {
     fn test_wrong_domain_separator() {
         let account_class_hash = declare("AccountUpgradeable").unwrap();
         let (owner, _) = deploy_account(account_class_hash);
-        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner.contract_address);
+        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner);
         let domain = contract.DOMAIN_SEPARATOR();
 
         let contract_domain = StarknetDomain {
@@ -185,13 +185,13 @@ mod testERC20Permit {
         let account_class_hash = declare("AccountUpgradeable").unwrap();
         let (owner, key_pair) = deploy_account(account_class_hash);
         let (spender, _) = deploy_account(account_class_hash);
-        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner.contract_address);
+        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner);
 
         let amount = 100;
         let deadline = 'ts10';
 
         let permit = Permit {
-            spender: spender.contract_address, value: amount, deadline: deadline,
+            spender: spender, value: amount, deadline: deadline,
         };
 
         let contract_domain = StarknetDomain {
@@ -214,7 +214,7 @@ mod testERC20Permit {
         start_warp(CheatTarget::All, 'ts9');
         contract
             .permit(
-                owner.contract_address, spender.contract_address, amount, deadline, signature
+                owner, spender, amount, deadline, signature
             );
     }
 }
