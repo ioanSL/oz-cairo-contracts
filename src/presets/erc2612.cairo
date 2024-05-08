@@ -48,10 +48,10 @@ mod ERC2612 {
     /// Required for hash computation.
     impl SNIP12MetadataImpl of SNIP12Metadata {
         fn name() -> felt252 {
-            'ERC2612'
+            'DAPP_NAME'
         }
         fn version() -> felt252 {
-            'v1'
+            'DAPP_VERSION'
         }
     }
 
