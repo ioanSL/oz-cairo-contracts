@@ -99,7 +99,7 @@ mod testERC20Permit {
 
         let (owner, _) = deploy_account(account_class_hash);
         let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner.contract_address);
-        let (recipient, _) = deploy_account(account_class_hash);
+        let (spender, _) = deploy_account(account_class_hash);
         let deadline = 'ts10';
         let amount = 100;
 
@@ -107,7 +107,7 @@ mod testERC20Permit {
         start_warp(CheatTarget::All, 'ts9');
         contract
             .permit(
-                owner.contract_address, recipient.contract_address, amount, deadline, signature
+                owner.contract_address, spender.contract_address, amount, deadline, signature
             );
     }
 
@@ -116,14 +116,14 @@ mod testERC20Permit {
         let account_class_hash = declare("AccountUpgradeable").unwrap();
 
         let (owner, key_pair) = deploy_account(account_class_hash);
-        let (recipient, _) = deploy_account(account_class_hash);
+        let (spender, _) = deploy_account(account_class_hash);
         let (relayer, _) = deploy_account(account_class_hash);
         let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner.contract_address);
         let deadline = 'ts10';
         let amount = 100;
 
         let permit = Permit {
-            spender: recipient.contract_address, value: amount, deadline: deadline,
+            spender: spender.contract_address, value: amount, deadline: deadline,
         };
 
         let msg_hash = permit.get_message_hash(owner.contract_address);
@@ -136,19 +136,19 @@ mod testERC20Permit {
         start_prank(CheatTarget::One(contract.contract_address), relayer.contract_address);
         contract
             .permit(
-                owner.contract_address, recipient.contract_address, amount, deadline, signature
+                owner.contract_address, spender.contract_address, amount, deadline, signature
             );
         stop_prank(CheatTarget::One(contract.contract_address));
 
-        assert_eq!(contract.allowance(owner.contract_address, recipient.contract_address), amount);
+        assert_eq!(contract.allowance(owner.contract_address, spender.contract_address), amount);
         assert_eq!(contract.balance_of(owner.contract_address), SUPPLY);
 
-        start_prank(CheatTarget::One(contract.contract_address), recipient.contract_address);
-        contract.transfer_from(owner.contract_address, recipient.contract_address, amount);
+        start_prank(CheatTarget::One(contract.contract_address), spender.contract_address);
+        contract.transfer_from(owner.contract_address, spender.contract_address, amount);
         stop_prank(CheatTarget::One(contract.contract_address));
 
         assert_eq!(contract.balance_of(owner.contract_address), SUPPLY - amount);
-        assert_eq!(contract.balance_of(recipient.contract_address), amount);
+        assert_eq!(contract.balance_of(spender.contract_address), amount);
     }
 
     #[test]
@@ -184,14 +184,14 @@ mod testERC20Permit {
     fn test_permit_with_wrong_domain_separator() {
         let account_class_hash = declare("AccountUpgradeable").unwrap();
         let (owner, key_pair) = deploy_account(account_class_hash);
-        let (recipient, _) = deploy_account(account_class_hash);
+        let (spender, _) = deploy_account(account_class_hash);
         let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, owner.contract_address);
 
         let amount = 100;
         let deadline = 'ts10';
 
         let permit = Permit {
-            spender: recipient.contract_address, value: amount, deadline: deadline,
+            spender: spender.contract_address, value: amount, deadline: deadline,
         };
 
         let contract_domain = StarknetDomain {
@@ -214,7 +214,7 @@ mod testERC20Permit {
         start_warp(CheatTarget::All, 'ts9');
         contract
             .permit(
-                owner.contract_address, recipient.contract_address, amount, deadline, signature
+                owner.contract_address, spender.contract_address, amount, deadline, signature
             );
     }
 }
