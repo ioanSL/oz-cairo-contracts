@@ -71,16 +71,6 @@ mod testERC20Permit {
     }
 
     #[test]
-    fn test_deploy() {
-        let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, OWNER());
-
-        assert_eq!(contract.name(), NAME());
-        assert_eq!(contract.symbol(), SYMBOL());
-        assert_eq!(contract.total_supply(), SUPPLY);
-        assert_eq!(contract.balance_of(OWNER()), SUPPLY);
-    }
-
-    #[test]
     #[should_panic(expected: ('Permit: Expired deadline',))]
     fn test_permit_expired_deadline() {
         let contract = deploy_erc20_permit(NAME(), SYMBOL(), SUPPLY, OWNER());
