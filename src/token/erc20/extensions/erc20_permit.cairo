@@ -87,7 +87,7 @@ mod ERC20PermitComponent {
             let nonce = nonces_component.nonces(owner);
             nonces_component.use_checked_nonce(owner, nonce);
 
-            let permit = Permit { spender, value, deadline, };
+            let permit = Permit { owner, spender, value, nonce, deadline, };
             let hash = permit.get_message_hash(owner);
 
             let is_valid_signature_felt = DualCaseAccount { contract_address: owner }
@@ -124,7 +124,7 @@ mod ERC20PermitComponent {
 
 const PERMIT_TYPE_HASH: felt252 =
     selector!(
-        "\"Permit\"(\"spender\":\"ContractAddress\",\"value\":\"u256\",\"deadline\":\"u128\")\"u256\"(\"low\":\"felt\",\"high\":\"felt\")"
+        "\"Permit\"(\"owner\":\"ContractAddress\",\"spender\":\"ContractAddress\",\"value\":\"u256\",\"nonce\":\"felt252\",\"deadline\":\"u128\")\"u256\"(\"low\":\"felt\",\"high\":\"felt\")"
     );
 
 
@@ -135,8 +135,10 @@ const PERMIT_TYPE_HASH: felt252 =
 ///
 #[derive(Copy, Drop, Hash)]
 struct Permit {
+    owner: ContractAddress,
     spender: ContractAddress,
     value: u256,
+    nonce: felt252,
     deadline: u128,
 }
 

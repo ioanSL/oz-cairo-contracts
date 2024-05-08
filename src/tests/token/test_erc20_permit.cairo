@@ -110,7 +110,7 @@ mod testERC20Permit {
         let amount = 100;
 
         let permit = Permit {
-            spender: spender, value: amount, deadline: deadline,
+            owner: owner, spender: spender, value: amount, nonce: 0, deadline: deadline,
         };
 
         let msg_hash = permit.get_message_hash(owner);
@@ -152,7 +152,7 @@ mod testERC20Permit {
         let domain = contract.DOMAIN_SEPARATOR();
 
         let contract_domain = StarknetDomain {
-            name: 'ERC2612', version: 'v1', chain_id: get_tx_info().unbox().chain_id, revision: 1,
+            name: 'DAPP_NAME', version: 'DAPP_VERSION', chain_id: get_tx_info().unbox().chain_id, revision: 1,
         };
 
         let contract_domain_hash = contract_domain.hash_struct();
@@ -186,7 +186,7 @@ mod testERC20Permit {
         let deadline = 'ts10';
 
         let permit = Permit {
-            spender: spender, value: amount, deadline: deadline,
+            owner: owner, spender: spender, value: amount, nonce: 0, deadline: deadline,
         };
 
         let contract_domain = StarknetDomain {
