@@ -20,6 +20,7 @@ mod testERC20Permit {
     use openzeppelin::utils::cryptography::snip12::{
         StructHash, StarknetDomain, STARKNET_DOMAIN_TYPE_HASH
     };
+    use openzeppelin::utils::serde::SerializedAppend;
     use poseidon::PoseidonTrait;
     use snforge_std::cheatcodes::events::EventFetcher;
     use snforge_std::signature::stark_curve::{
@@ -40,11 +41,11 @@ mod testERC20Permit {
         name: ByteArray, symbol: ByteArray, fixed_supply: u256, recipient: ContractAddress
     ) -> ERC20PermitABIDispatcher {
         let contract_hash = declare("ERC2612").unwrap();
-        let mut constructor_args: Array<felt252> = ArrayTrait::new();
-        Serde::serialize(@name, ref constructor_args);
-        Serde::serialize(@symbol, ref constructor_args);
-        Serde::serialize(@fixed_supply, ref constructor_args);
-        Serde::serialize(@recipient, ref constructor_args);
+        let mut constructor_args: Array<felt252> = array![];
+        constructor_args.append_serde(name);
+        constructor_args.append_serde(symbol);
+        constructor_args.append_serde(fixed_supply);
+        constructor_args.append_serde(recipient);
 
         let (contract_address, _) = contract_hash.deploy(@constructor_args).unwrap();
 
@@ -57,13 +58,12 @@ mod testERC20Permit {
         return (key_pair.public_key, key_pair.secret_key);
     }
 
-
     fn deploy_account(
         contract_hash: ContractClass
     ) -> (ContractAddress, KeyPair<felt252, felt252>) {
         let mut constructor_args: Array<felt252> = ArrayTrait::new();
         let key_pair = KeyPairTrait::<felt252, felt252>::generate();
-        Serde::serialize(@key_pair.public_key, ref constructor_args);
+        constructor_args.append_serde(key_pair.public_key);
 
         let (contract_address, _) = contract_hash.deploy(@constructor_args).unwrap();
 
@@ -130,8 +130,8 @@ mod testERC20Permit {
         let (r, s): (felt252, felt252) = key_pair.sign(msg_hash);
 
         let mut signature: Array<felt252> = ArrayTrait::new();
-        Serde::serialize(@r, ref signature);
-        Serde::serialize(@s, ref signature);
+        signature.append_serde(r);
+        signature.append_serde(s);
 
         start_prank(CheatTarget::One(contract.contract_address), relayer);
         contract
@@ -217,8 +217,8 @@ mod testERC20Permit {
         let (r, s): (felt252, felt252) = key_pair.sign(offchain_msg_hash);
 
         let mut signature: Array<felt252> = ArrayTrait::new();
-        Serde::serialize(@r, ref signature);
-        Serde::serialize(@s, ref signature);
+        signature.append_serde(r);
+        signature.append_serde(s);
 
         start_warp(CheatTarget::All, 'ts9');
         contract
