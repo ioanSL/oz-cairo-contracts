@@ -2,13 +2,11 @@
 mod testERC20Permit {
     use core::array::ArrayTrait;
     use core::hash::HashStateExTrait;
-    use core::result::ResultTrait;
-    use core::traits::{Into, TryInto};
-    use hash::{HashStateTrait, Hash};
+    use hash::HashStateTrait;
     use openzeppelin::presets::erc2612::ERC2612::SNIP12MetadataImpl;
     use openzeppelin::presets::interfaces::account::AccountUpgradeableABIDispatcher;
     use openzeppelin::tests::utils::constants::{
-        NAME, SYMBOL, SUPPLY, ZERO, OWNER, PUBKEY, RECIPIENT
+        NAME, SYMBOL, SUPPLY, OWNER, RECIPIENT
     };
     use openzeppelin::token::erc20::extensions::erc20_permit::{
         IPermit, Permit, OffchainMessageHash
