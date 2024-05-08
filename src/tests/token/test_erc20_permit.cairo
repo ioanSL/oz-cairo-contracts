@@ -140,15 +140,21 @@ mod testERC20Permit {
             );
         stop_prank(CheatTarget::One(contract.contract_address));
 
-        assert_eq!(contract.allowance(owner, spender), amount);
-        assert_eq!(contract.balance_of(owner), SUPPLY);
+        let spender_allowance = contract.allowance(owner, spender);
+        let owner_balance = contract.balance_of(owner);
+
+        assert_eq!(spender_allowance, amount);
+        assert_eq!(owner_balance, SUPPLY);
 
         start_prank(CheatTarget::One(contract.contract_address), spender);
         contract.transfer_from(owner, spender, amount);
         stop_prank(CheatTarget::One(contract.contract_address));
 
-        assert_eq!(contract.balance_of(owner), SUPPLY - amount);
-        assert_eq!(contract.balance_of(spender), amount);
+        let owner_new_balance = contract.balance_of(owner);
+        let spender_new_balance = contract.balance_of(spender);
+
+        assert_eq!(owner_new_balance, SUPPLY - amount);
+        assert_eq!(spender_new_balance, amount);
     }
 
     #[test]
@@ -162,7 +168,9 @@ mod testERC20Permit {
             name: 'ERC2612', version: 'v1', chain_id: get_tx_info().unbox().chain_id, revision: 1,
         };
 
-        assert_eq!(contract_domain.hash_struct(), domain);
+        let contract_domain_hash = contract_domain.hash_struct();
+
+        assert_eq!(contract_domain_hash, domain);
     }
 
     #[test]
