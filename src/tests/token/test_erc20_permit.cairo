@@ -1,17 +1,19 @@
 #[cfg(test)]
 mod testERC20Permit {
-    use core::option::OptionTrait;
+    use openzeppelin::token::erc20::extensions::erc20_permit::ERC20PermitComponent::InternalImplTrait;
+use core::starknet::storage::StorageMapMemberAccessTrait;
+use core::option::OptionTrait;
 use core::array::ArrayTrait;
 use core::clone::Clone;
 use core::hash::HashStateExTrait;
     use hash::HashStateTrait;
     use openzeppelin::presets::erc2612::ERC2612::SNIP12MetadataImpl;
-    use openzeppelin::presets::interfaces::account::AccountUpgradeableABIDispatcher;
+    use openzeppelin::presets::erc2612::ERC2612::contract_state_for_testing;
     use openzeppelin::tests::utils::constants::{
         NAME, SYMBOL, SUPPLY, OWNER, RECIPIENT
     };
     use openzeppelin::token::erc20::extensions::erc20_permit::{
-        IPermit, Permit, OffchainMessageHash
+        IPermit, Permit, OffchainMessageHash, ERC20PermitComponent::InternalImpl
     };
     use openzeppelin::token::erc20::interface::{
         ERC20PermitABIDispatcher, ERC20PermitABIDispatcherTrait
@@ -100,6 +102,13 @@ use core::hash::HashStateExTrait;
         return (owner, key_pair, spender, relayer, contract, amount, deadline);
     }
 
+    fn internal_permit_setup() -> (ContractAddress, KeyPair<felt252, felt252>) {
+        let account_class_hash = declare("AccountUpgradeable").unwrap();
+        let (owner, key_pair) = deploy_account(account_class_hash);
+
+        return (owner, key_pair);
+    }
+
     #[test]
     #[should_panic(expected: ('Permit: Expired deadline',))]
     fn test_permit_expired_deadline() {
@@ -113,16 +122,20 @@ use core::hash::HashStateExTrait;
     }
 
     #[test]
-    #[should_panic(expected: ('Permit: Invalid signature',))]
     fn test_permit_invalid_signature() {
-        let (owner, _, spender, _, contract, amount, deadline) = permit_setup();
+        let state = contract_state_for_testing();
+        let (owner, _) = internal_permit_setup();
+
+        let permit = Permit {
+            owner: owner, spender: owner, value: 100, nonce: 0, deadline: 'ts10',
+        };
 
         let signature: Array<felt252> = array![];
         start_warp(CheatTarget::All, 'ts9');
-        contract
-            .permit(
-                owner, spender, amount, deadline, signature
-            );
+        
+        let is_valid = state.erc20permit._validate_signature(permit, signature);
+
+        assert(!is_valid, 'Signature must be invalid');
     }
 
     #[test]
@@ -178,28 +191,28 @@ use core::hash::HashStateExTrait;
     }
 
     #[test]
-    #[should_panic(expected: ('Permit: Invalid signature',))]
     fn test_permit_invalid_signature_s() {
-        let (owner, key_pair, spender, relayer, contract, amount, deadline) = permit_setup();
+        let state = contract_state_for_testing();
+        let (owner, key_pair, spender, _, _, amount, deadline) = permit_setup();
         let nonce = 0;
         let mut signature = generate_signature(owner, spender, amount, nonce, deadline, key_pair);
 
         signature.pop_front().unwrap();
         signature.append(0x0987);
         //[r, s] = signature[0x..., 0x0987]
+        let permit = Permit {
+            owner: owner, spender: spender, value: amount, nonce: nonce, deadline: deadline,
+        };
 
-        start_prank(CheatTarget::One(contract.contract_address), relayer);
-        contract
-            .permit(
-                owner, spender, amount, deadline, signature.clone()
-            );
-        stop_prank(CheatTarget::One(contract.contract_address));
+        let is_valid = state.erc20permit._validate_signature(permit, signature);
+
+        assert(!is_valid, 'Signature must be invalid');
     }
 
     #[test]
-    #[should_panic(expected: ('Permit: Invalid signature',))]
     fn test_permit_invalid_signature_r() {
-        let (owner, key_pair, spender, relayer, contract, amount, deadline) = permit_setup();
+        let state = contract_state_for_testing();
+        let (owner, key_pair, spender, _, _, amount, deadline) = permit_setup();
         let nonce = 0;
         let mut signature = generate_signature(owner, spender, amount, nonce, deadline, key_pair);
 
@@ -208,31 +221,30 @@ use core::hash::HashStateExTrait;
         signature.append(0x0987);
         signature.append(s);
         //[r, s] = signature[0x0987, 0x...]
+        let permit = Permit {
+            owner: owner, spender: spender, value: amount, nonce: nonce, deadline: deadline,
+        };
 
-        start_prank(CheatTarget::One(contract.contract_address), relayer);
-        contract
-            .permit(
-                owner, spender, amount, deadline, signature.clone()
-            );
-        stop_prank(CheatTarget::One(contract.contract_address));
+        state.erc20permit._validate_signature(permit, signature);
     }
 
     #[test]
-    #[should_panic(expected: ('Permit: Invalid signature',))]
     fn test_permit_invalid_signature_extra() {
-        let (owner, key_pair, spender, relayer, contract, amount, deadline) = permit_setup();
+        let state = contract_state_for_testing();
+        let (owner, key_pair, spender, _, _, amount, deadline) = permit_setup();
         let nonce = 0;
         let mut signature = generate_signature(owner, spender, amount, nonce, deadline, key_pair);
 
         signature.append(0x1234);
         //[r, s] = signature[0x.., 0x..., 0x1234]
 
-        start_prank(CheatTarget::One(contract.contract_address), relayer);
-        contract
-            .permit(
-                owner, spender, amount, deadline, signature.clone()
-            );
-        stop_prank(CheatTarget::One(contract.contract_address));
+        let permit = Permit {
+            owner: owner, spender: spender, value: amount, nonce: nonce, deadline: deadline,
+        };
+        
+        let is_valid = state.erc20permit._validate_signature(permit, signature.clone());
+
+        assert(!is_valid, 'Signature must be invalid');
     }
 
     #[test]
@@ -251,8 +263,28 @@ use core::hash::HashStateExTrait;
     }
 
     #[test]
+    fn test_validate_signature() {
+        let state = contract_state_for_testing();
+        let (owner, key_pair) = internal_permit_setup();
+        let permit = Permit {
+            owner: owner, spender: owner, value: 100, nonce: 0, deadline: 'ts10',
+        };
+
+        let msg_hash = permit.get_message_hash(owner);
+        let (r, s): (felt252, felt252) = key_pair.sign(msg_hash);
+
+        let mut signature: Array<felt252> = array![];
+        signature.append_serde(r);
+        signature.append_serde(s);
+
+        let is_valid = state.erc20permit._validate_signature(permit, signature);
+
+        assert(is_valid, 'Invalid signature');
+    }
+
+    #[test]
     #[should_panic(expected: ('Permit: Invalid signature',))]
-    fn test_permit_wrong_nonce() {
+    fn test_permit_wrong_signature_nonce() {
         let (owner, key_pair, spender, relayer, contract, amount, deadline) = permit_setup();
         let nonce = 300;
         let signature = generate_signature(owner, spender, amount, nonce, deadline, key_pair);
@@ -263,7 +295,29 @@ use core::hash::HashStateExTrait;
                 owner, spender, amount, deadline, signature
             );
         stop_prank(CheatTarget::One(contract.contract_address));
+    }
 
+    #[test]
+    #[should_panic(expected: ('Permit: Invalid nonce',))]
+    fn test_use_nonce_failure() {
+        let (owner, _) = internal_permit_setup();
+        let mut state = contract_state_for_testing();
+
+        state.erc20permit.Permit_nonces.write(owner, 3);
+        state.erc20permit._use_nonce(owner, 4);
+    }
+
+    #[test]
+    fn test_use_nonce() {
+        let (owner, _) = internal_permit_setup();
+        let mut state = contract_state_for_testing();
+
+        state.erc20permit.Permit_nonces.write(owner, 3);
+        state.erc20permit._use_nonce(owner, 3);
+
+        let new_nonce = state.erc20permit.Permit_nonces.read(owner);
+
+        assert(new_nonce == 4, 'Invalid nonce update');
     }
 
     #[test]

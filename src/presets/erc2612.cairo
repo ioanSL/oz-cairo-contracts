@@ -9,7 +9,6 @@ mod ERC2612 {
     use starknet::ContractAddress;
 
     component!(path: ERC20Component, storage: erc20, event: ERC20Event);
-    component!(path: NoncesComponent, storage: nonces, event: NoncesEvent);
     component!(path: ERC20PermitComponent, storage: erc20permit, event: ERC20PermitEvent);
 
     #[abi(embed_v0)]
@@ -21,15 +20,10 @@ mod ERC2612 {
     impl ERC20MixinImpl = ERC20Component::ERC20MixinImpl<ContractState>;
     impl ERC20InternalImpl = ERC20Component::InternalImpl<ContractState>;
 
-    #[abi(embed_v0)]
-    impl NoncesImpl = NoncesComponent::NoncesImpl<ContractState>;
-
     #[storage]
     struct Storage {
         #[substorage(v0)]
         erc20: ERC20Component::Storage,
-        #[substorage(v0)]
-        nonces: NoncesComponent::Storage,
         #[substorage(v0)]
         erc20permit: ERC20PermitComponent::Storage,
     }
@@ -39,8 +33,6 @@ mod ERC2612 {
     enum Event {
         #[flat]
         ERC20Event: ERC20Component::Event,
-        #[flat]
-        NoncesEvent: NoncesComponent::Event,
         #[flat]
         ERC20PermitEvent: ERC20PermitComponent::Event,
     }

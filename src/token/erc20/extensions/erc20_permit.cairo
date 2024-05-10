@@ -17,6 +17,8 @@ trait IPermit<TState> {
         signature: Array<felt252>
     );
 
+    fn nonces(self: @TState, owner: ContractAddress) -> felt252;
+
     fn DOMAIN_SEPARATOR(self: @TState) -> felt252;
 }
 
@@ -41,7 +43,9 @@ mod ERC20PermitComponent {
 
 
     #[storage]
-    struct Storage {}
+    struct Storage {
+        Permit_nonces: LegacyMap<ContractAddress, felt252>
+    }
 
     #[event]
     #[derive(Drop, starknet::Event)]
@@ -51,6 +55,7 @@ mod ERC20PermitComponent {
     mod Errors {
         const INVALID_SIGNATURE: felt252 = 'Permit: Invalid signature';
         const INVALID_DEADLINE: felt252 = 'Permit: Expired deadline';
+        const INVALID_NONCE: felt252 = 'Permit: Invalid nonce';
     }
 
     #[embeddable_as(ERC20PermitImpl)]
@@ -59,7 +64,6 @@ mod ERC20PermitComponent {
         +HasComponent<TContractState>,
         impl ERC20: ERC20Component::HasComponent<TContractState>,
         +ERC20Component::ERC20HooksTrait<TContractState>,
-        impl Nonces: NoncesComponent::HasComponent<TContractState>,
         +SNIP12Metadata,
         +Drop<TContractState>
     > of IPermit<ComponentState<TContractState>> {
@@ -83,29 +87,31 @@ mod ERC20PermitComponent {
         ) {
             assert(get_block_timestamp().into() <= deadline, Errors::INVALID_DEADLINE);
 
-            let mut nonces_component = get_dep_component_mut!(ref self, Nonces);
-            let nonce = nonces_component.nonces(owner);
-            nonces_component.use_checked_nonce(owner, nonce);
+            let nonce = self.nonces(owner);
+            self._use_nonce(owner, nonce);
 
-            let permit = Permit { owner, spender, value, nonce, deadline, };
-            let hash = permit.get_message_hash(owner);
-
-            let is_valid_signature_felt = DualCaseAccount { contract_address: owner }
-                .is_valid_signature(hash, signature);
-
-            let is_valid_signature = is_valid_signature_felt == starknet::VALIDATED
-                || is_valid_signature_felt == 1;
-
+            let permit = Permit { owner, spender, value, nonce, deadline};
+            let is_valid_signature = self._validate_signature(permit, signature);
             assert(is_valid_signature, Errors::INVALID_SIGNATURE);
-
+            
             let mut erc20_component = get_dep_component_mut!(ref self, ERC20);
             erc20_component._approve(owner, spender, value);
+        }
+
+        /// 
+        /// Retrieves the nonce value for a specific owner.
+        /// 
+        /// @param owner The address of the owner for which to retrieve the nonce.
+        /// @return The nonce value associated with the owner.
+        /// 
+        fn nonces(self: @ComponentState<TContractState>, owner: ContractAddress) -> felt252 {
+            let nonce = self.Permit_nonces.read(owner);
+            return nonce;
         }
 
         ///
         /// Returns the domain separator for the ERC20 permit extension.
         ///
-        /// @param self The reference to the component state of the contract.
         /// @return The domain separator value as a felt252.
         ///
         fn DOMAIN_SEPARATOR(self: @ComponentState<TContractState>) -> felt252 {
@@ -117,6 +123,49 @@ mod ERC20PermitComponent {
             };
 
             return component_domain.hash_struct();
+        }
+    }
+
+    #[generate_trait]
+    impl InternalImpl<
+        TContractState,
+        +HasComponent<TContractState>,
+        +SNIP12Metadata,
+    > of InternalImplTrait<TContractState> {
+
+        ///
+        /// Function to use a nonce for a specific owner in the ERC20 permit extension.
+        ///
+        /// @param owner The address of the owner for whom the nonce is being used.
+        /// @param nonce The nonce value to be used.
+        /// @return The current nonce value associated with the owner.
+        /// 
+        fn _use_nonce(ref self: ComponentState<TContractState>, owner: ContractAddress, nonce: felt252) -> felt252 {
+            let current = self.Permit_nonces.read(owner);
+            self.Permit_nonces.write(owner, nonce + 1);
+            assert(nonce == current, Errors::INVALID_NONCE);
+
+            return nonce;
+        }
+
+        /// 
+        /// Validates the signature of a permit.
+        /// 
+        /// @param permit The permit struct to validate.
+        /// @param signature The signature to validate.
+        /// @return True if the signature is valid, false otherwise.
+        /// 
+        fn _validate_signature(
+            self: @ComponentState<TContractState>,
+            permit: Permit,
+            signature: Array<felt252>
+        ) -> bool {
+            let hash = permit.get_message_hash(permit.owner);
+            let is_valid_signature_felt = DualCaseAccount { contract_address: permit.owner }
+                .is_valid_signature(hash, signature);
+
+            return is_valid_signature_felt == starknet::VALIDATED
+                || is_valid_signature_felt == 1;
         }
     }
 }
