@@ -1,0 +1,212 @@
+= ERC2612
+
+The ERC2612 token standard defines the requirements for fungible tokens. Each unit of such a token is interchangeable 
+with any other unit. The token::erc2612::extensions::ERC20Permit provides an implementation of the ERC2612, including 
+EIP20 with signed approval functionality, specifically designed to work in the Cairo language for Starknet.
+
+== Interface
+
+The full Application Binary Interface (ABI) for the Contracts for Cairo's erc20-permit-component is represented in the 
+selected text. This interface encompasses four distinct components: IERC20, IERC20Metadata, INonce, and IPermit. 
+Each component plays a unique role within the overall interface.
+
+[,cairo]
+----
+trait ERC2612ABI<TState> {
+    // IERC20
+    fn total_supply(self: @TState) -> u256;
+    fn balance_of(self: @TState, account: ContractAddress) -> u256;
+    fn allowance(self: @TState, owner: ContractAddress, spender: ContractAddress) -> u256;
+    fn transfer(ref self: TState, recipient: ContractAddress, amount: u256) -> bool;
+    fn transfer_from(
+        ref self: TState, sender: ContractAddress, recipient: ContractAddress, amount: u256
+    ) -> bool;
+    fn approve(ref self: TState, spender: ContractAddress, amount: u256) -> bool;
+
+    // IERC20Metadata
+    fn name(self: @TState) -> ByteArray;
+    fn symbol(self: @TState) -> ByteArray;
+    fn decimals(self: @TState) -> u8;
+
+    // INonces
+    fn nonces(self: @TState, owner: ContractAddress) -> felt252;
+
+    // IPermit
+    fn permit(
+        ref self: TState,
+        owner: ContractAddress,
+        spender: ContractAddress,
+        value: u256,
+        deadline: u128,
+        signature: Array<felt252>
+    );
+
+    fn DOMAIN_SEPARATOR(self: @TState) -> felt252;
+}
+
+----
+
+=== ERC2612 compatibility
+
+This component strives to align as closely as possible with the ERC2612 standard implementation. However, a few 
+distinct differences can still be observed, such as:
+
+* All differences inherited from the ERC20 standard
+* The `signature` argument is presented as an Array of Felt252, which varies from the EIP2612 standard where it is specified in Weierstrass format.
+
+== Usage
+
+To build an ERC2612 contract with Contracts for Cairo, a constructor function needs to be established first. Then, the 
+following components must be instantiated.
+
+* ERC20Component
+* NonceComponent
+* ERC20PermitComponent
+
+Here's what it looks like:
+
+[,cairo]
+----
+
+#[starknet::contract]
+mod ERC2612 {
+    use openzeppelin::token::erc20::extensions::{ERC20PermitComponent};
+    use openzeppelin::token::erc20::{ERC20Component, ERC20HooksEmptyImpl};
+    use openzeppelin::utils::cryptography::nonces::NoncesComponent;
+    use openzeppelin::utils::cryptography::snip12::{OffchainMessageHash, StructHash, SNIP12Metadata};
+    use starknet::ContractAddress;
+
+    component!(path: ERC20Component, storage: erc20, event: ERC20Event);
+    component!(path: NoncesComponent, storage: nonces, event: NoncesEvent);
+    component!(path: ERC20PermitComponent, storage: erc20permit, event: ERC20PermitEvent);
+
+    #[abi(embed_v0)]
+    impl ERC20PermitImpl = ERC20PermitComponent::ERC20PermitImpl<ContractState>;
+
+    #[abi(embed_v0)]
+    impl ERC20MixinImpl = ERC20Component::ERC20MixinImpl<ContractState>;
+    impl ERC20InternalImpl = ERC20Component::InternalImpl<ContractState>;
+
+    #[abi(embed_v0)]
+    impl NoncesImpl = NoncesComponent::NoncesImpl<ContractState>;
+
+    #[storage]
+    struct Storage {
+        #[substorage(v0)]
+        erc20: ERC20Component::Storage,
+        #[substorage(v0)]
+        nonces: NoncesComponent::Storage,
+        #[substorage(v0)]
+        erc20permit: ERC20PermitComponent::Storage,
+        
+    }
+
+    #[event]
+    #[derive(Drop, starknet::Event)]
+    enum Event {
+        #[flat]
+        ERC20Event: ERC20Component::Event,
+        #[flat]
+        NoncesEvent: NoncesComponent::Event,
+        #[flat]
+        ERC20PermitEvent: ERC20PermitComponent::Event,
+    }
+
+    /// Required for hash computation.
+    impl SNIP12MetadataImpl of SNIP12Metadata {
+        fn name() -> felt252 {
+            'ERC2612'
+        }
+        fn version() -> felt252 {
+            'v1'
+        }
+    }
+
+    #[constructor]
+    fn constructor(
+        ref self: ContractState,
+        name: ByteArray,
+        symbol: ByteArray,
+        fixed_supply: u256,
+        recipient: ContractAddress,
+    ) {
+        self.erc20.initializer(name, symbol);
+    }
+}
+
+----
+
+When building an ERC2612 contract with Contracts for Cairo, start by establishing a constructor function. In this function, 
+it's good practice to initialize the ERC20 component, although it's not mandatory.
+
+Understand that your contract will implement SNIP12MetadataImpl, because each contract has a unique domain. This domain, 
+which becomes fixed once the contract class hash is declared on-chain, cannot be altered thereafter.
+
+
+=== Message Signing
+
+You may have observed that one of the arguments in the permit function is named 'signature', which is an array of felt252. This argument is unique as it is employed to convey a signed message to the smart contract. Subsequently, the smart contract authenticates the signer ensuring it aligns with the owner's account address. Here's the method for constructing such a message.
+
+To build this signature, we need to examine the Starknet Domain. Every implemented ERC2612 smart contract will possess a defined domain as follows:
+
+[,cairo]
+----
+StarknetDomain {
+    name: 'DAPP_NAME',
+    version: 'DAPP_VERSION',
+    chain_id: 'CHAIN_ID',
+    revision: 1,
+}
+
+----
+
+Each contract's specific domain for the smart contract can be retrieved using the DOMAIN_SEPARATOR() method, which provides this data in hexadecimal format.
+
+The second portion of the message involves a structure referred to as Permit. This structure holds information such as the token spender, the amount, and a deadline for sending the message to the smart contract.
+
+[,cairo]
+----
+Permit {
+    spender: ContractAddress,
+    value: u256,
+    deadline: u128,
+}
+
+----
+
+The fields for spender, value, and deadline need to align with the permit arguments when the smart contract function is invoked. Subsequently, the smart contract will validate the message content to ensure all elements are accurate and the message signer is indeed the owner of the spending limit.
+
+When consolidating all this data, your message should be structured as follows:
+
+[,typescript]
+----
+{
+  types: {
+    StarknetDomain: [
+      { name: 'name', type: 'shortstring' },
+      { name: 'version', type: 'shortstring' },
+      { name: 'chainId', type: 'shortstring' },
+      { name: 'revision', type: 'shortstring' },
+    ],
+    Permit: [
+      { name: 'spender', type: 'ContractAddress' },
+      { name: 'value', type: 'u256'},
+      { name: 'deadline', type: 'u128' },
+    ],
+  },
+  primaryType: 'Permit',
+  domain: {
+    name: 'ERC2612',
+    version: 'v1',
+    chainId: 'SN_TEST',
+    revision: '1',
+  },
+  message: {
+    spender: 'RECIPIENT',
+    value: 100
+    deadline: 'ts10',
+  },
+}
+----
+
+NOTE: Each field in the message also holds details about its type. This data is crucial for correctly converting the information within the message to the format anticipated by the smart contract.

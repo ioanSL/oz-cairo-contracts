@@ -650,6 +650,95 @@ Emitted when `delegator` delegates their votes from `from_delegate` to `to_deleg
 
 Emitted when `delegate` votes are updated from `previous_votes` to `new_votes`.
 
+[.contract]
+[[ERC20PermitComponent]]
+
+:nonces-component: xref:/api/utilities.adoc#NoncesComponent[NoncesComponent]
+:eip-2612: link:https://eips.ethereum.org/EIPS/eip-2612[EIP-2612]
+
+=== `++ERC20PermitComponent++` link:https://github.com/OpenZeppelin/cairo-contracts/blob/release-v0.11.0/src/token/erc20/extensions/erc20_votes.cairo[{github-icon},role=heading-link]
+
+```cairo
+use openzeppelin::token::extensions::ERC20PermitComponent;
+```
+
+Extension of ERC20 to support permit for approvals.
+
+NOTE: Implementing xref:#ERC20Component[ERC20Component] and {nonces-component} is a requirement for this component to be implemented.
+
+This extension adds the xref:#ERC20PermitComponent-permit[permit] function, which allows token holders to approve a spender without requiring a transaction and
+the xref:#ERC20PermitComponent-DOMAIN_SEPARATOR[DOMAIN_SEPARATOR] function to get the domain separator for the SNIP12 signature.
+
+[.contract-index#ERC20PermitComponent-Embeddable-Impls]
+.Embeddable Implementations
+--
+[.sub-index#ERC20PermitComponent-Embeddable-Impls-ERC20PermitImpl]
+.ERC20PermitImpl
+* xref:#ERC20PermitComponent-permit[`++permit(self, owner, spender, amount, deadline, signature)++`]
+* xref:#ERC20PermitComponent-DOMAIN_SEPARATOR[`++DOMAIN_SEPARATOR(self)++`]
+--
+
+[.contract-index#ERC20PermitComponent-Internal-Impls]
+.Internal Implementations
+--
+* xref:#ERC20PermitComponent-_use_nonce[`++_use_nonce(self, owner, nonce)++`]
+* xref:#ERC20PermitComponent-_validate_signature[`++_validate_signature(self, permit, signature)++`]
+--
+
+NOTE: In comparison with the {eip-2612}, this component does not implement the `nonces` function. This is because the `nonces` function is already implemented in the {nonces-component}
+and it is used to get the nonce of a specific account.
+
+[#ERC20PermitComponent-Embeddable-functions]
+==== Embeddable functions
+
+[.contract-item]
+[[ERC20PermitComponent-permit]]
+==== `[.contract-item-name]#++permit++#++(ref self: ContractState, owner: ContractAddress, spender: ContractAddress, value: u256, deadline: u128, signature: Array<felt252>)++` [.item-kind]#external#
+
+Allows the owner of the token to approve the spender to transfer a specified amount of tokens on their behalf.
+
+Requirements:
+
+- `deadline` must be in the future.
+- `owner` must implement SRC6::is_valid_signature.
+- `signature` should be valid a valid message hash.
+
+[.contract-item]
+[[ERC20PermitComponent-DOMAIN_SEPARATOR]]
+==== `[.contract-item-name]#++DOMAIN_SEPARATOR++#++(self: @ContractState) → felt252++` [.item-kind]#external#
+
+Returns the domain separator for the ERC20 permit extension.
+
+[#ERC20PermitComponent-Internal-functions]
+==== Internal functions
+
+[.contract-item]
+[[ERC20PermitComponent-_use_nonce]]
+==== `[.contract-item-name]#++_use_nonce++#++(ref self: ContractState, owner: ContractAddress, nonce: felt252)++` [.item-kind]#internal#
+
+Function to use a nonce for a specific owner in the ERC20 permit extension.
+
+[.contract-item]
+[[ERC20PermitComponent-_validate_signature]]
+==== `[.contract-item-name]#++_validate_signature++#++(self: @ContractState, permit: Permit, signature: Array<felt252>)++` [.item-kind]#internal#
+
+Validates the signature of a permit.
+
+Requirements:
+
+* `permit` is a structure that contains the permit data and is defined as follows:
+
+[,cairo]
+----
+Permit {
+    owner: ContractAddress
+    spender: ContractAddress,
+    value: u256,
+    nonce: felt252,
+    deadline: u128,
+}
+----
+
 == Presets
 
 [.contract]
@@ -717,3 +806,48 @@ Requirements:
 
 - The caller is the contract owner.
 - `new_class_hash` cannot be zero.
+
+[.contract]
+[[ERC20Permit]]
+=== `++ERC20Permit++` 
+
+:snip12: xref:/guides/snip12.adoc[SNIP12]
+
+```cairo
+use openzeppelin::presets::ERC20Permit;
+```
+
+This contract preset enables ERC20 permit functionalities for approvals by leveraging ERC20PermitComponent.
+
+NOTE: This contract uses signatures to approve a spender without requiring a transaction using the `SNIP12` standard.
+Please refer to the {snip12} documentation for more information about signing messages.
+
+include::../utils/_class_hashes.adoc[]
+
+[.contract-index]
+.{presets-page}
+--
+{ERC20Permit-class-hash}
+--
+
+[.contract-index]
+.Constructor
+--
+* xref:#ERC20Upgradeable-constructor[`++constructor(self, name, symbol, fixed_supply, recipient)++`]
+--
+
+[.contract-index]
+.Embedded Implementations
+--
+.ERC20MixinImpl
+
+* xref:#ERC20Component-Embeddable-Mixin-Impl[`++ERC20MixinImpl++`]
+
+.NonceComponentImpl
+
+* xref:/api/utilities.adoc#NoncesComponent[`++NoncesImpl++`]
+
+.ERC20PermitImpl
+
+* xref:#ERC20PermitComponent-Embeddable-Impls-ERC20PermitImpl[`++ERC20PermitImpl++`]
+--
