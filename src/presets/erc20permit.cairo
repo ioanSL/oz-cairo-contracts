@@ -1,5 +1,5 @@
 #[starknet::contract]
-mod ERC2612 {
+mod ERC20Permit {
     use openzeppelin::token::erc20::extensions::{ERC20PermitComponent};
     use openzeppelin::token::erc20::{ERC20Component, ERC20HooksEmptyImpl};
     use openzeppelin::utils::cryptography::nonces::NoncesComponent;

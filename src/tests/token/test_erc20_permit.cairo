@@ -7,8 +7,8 @@ use core::array::ArrayTrait;
 use core::clone::Clone;
 use core::hash::HashStateExTrait;
     use hash::HashStateTrait;
-    use openzeppelin::presets::erc2612::ERC2612::SNIP12MetadataImpl;
-    use openzeppelin::presets::erc2612::ERC2612::contract_state_for_testing;
+    use openzeppelin::presets::erc20permit::ERC20Permit::SNIP12MetadataImpl;
+    use openzeppelin::presets::erc20permit::ERC20Permit::contract_state_for_testing;
     use openzeppelin::tests::utils::constants::{
         NAME, SYMBOL, SUPPLY, OWNER, RECIPIENT
     };
