@@ -1,5 +1,6 @@
 :account-upgradeable: xref:/api/account.adoc#AccountUpgradeable[AccountUpgradeable]
 :erc20-upgradeable: xref:/api/erc20.adoc#ERC20Upgradeable[ERC20Upgradeable]
+:erc20-permit: xref:/api/erc20.adoc#ERC20Permit[ERC20Permit]
 :erc721-upgradeable: xref:/api/erc721.adoc#ERC721Upgradeable[ERC721Upgradeable]
 :erc1155-upgradeable: xref:/api/erc1155.adoc#ERC1155Upgradeable[ERC1155Upgradeable]
 :eth-account-upgradeable: xref:/api/account.adoc#EthAccountUpgradeable[EthAccountUpgradeable]
@@ -33,6 +34,9 @@ NOTE: Class hashes were computed using {class-hash-cairo-version}.
 
 | `{erc20-upgradeable}`
 | `{ERC20Upgradeable-class-hash}`
+
+| `{erc20-permit}`
+| `{ERC20Permit-class-hash}`
 
 | `{erc721-upgradeable}`
 | `{ERC721Upgradeable-class-hash}`
